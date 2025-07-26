@@ -4,44 +4,40 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Countdown Timer</title>
+    <link rel="icon" href="favicon.ico" type="image/x-icon">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="container">
-        <h1 id="title">Countdown Timer</h1>
-        <div id="countdown" class="countdown">00:00</div>
-        <button id="fullscreenBtn" class="fullscreen-btn">⛶</button>
-    </div>
-
-    <!-- ✅ 当前时间固定在右下角 -->
-    <div class="bottom-right">
-        <div id="currentTime" class="current-time">
-            <div id="timeLine"></div>
-            <div id="dateLine"></div>
+    <section class="timer-section">
+        <div class="container">
+            <h1 id="title">Countdown Timer</h1>
+            <div id="countdown" class="countdown">00:00</div>
+            <button id="fullscreenBtn" class="fullscreen-btn">⛶</button>
         </div>
-    </div>
-
-    <!-- ✅ 设置时间固定在左下角 -->
-    <div class="bottom-left">
-        <div class="input-box">
-            <label>Set Time:</label>
-            <input type="number" id="hourInput" placeholder="HH" min="0" max="23"> :
-            <input type="number" id="minuteInput" placeholder="MM" min="0" max="59">
-            <button id="startBtn">Start</button>
-            <button id="stopBtn">Stop</button>
+        <div class="bottom-right">
+            <div id="currentTime" class="current-time">
+                <div id="timeLine"></div>
+                <div id="dateLine"></div>
+            </div>
         </div>
+    </section>
 
-        <!-- 快捷按钮 -->
-        <div class="quick-buttons">
-            <label>Quick Set:</label>
-            <div id="quickBtnContainer"></div>
+    <section class="setup-section">
+        <div class="setup-container">
+            <div class="input-box">
+                <label>Set Time:</label>
+                <input type="number" id="hourInput" placeholder="HH" min="0" max="23"> :
+                <input type="number" id="minuteInput" placeholder="MM" min="0" max="59">
+                <button id="startBtn">Start</button>
+                <button id="stopBtn">Stop</button>
+            </div>
+            <div class="quick-buttons">
+                <label>Quick Set</label>
+                <div id="quickBtnContainer"></div>
+                <div id="quickAddContainer"></div>
+            </div>
         </div>
-
-        <!-- 增量快捷按钮 -->
-        <div class="quick-buttons">
-            <div id="quickAddContainer"></div>
-        </div>
-    </div>
+    </section>
 
     <audio id="alarmSound" src="alarm.mp3" preload="auto"></audio>
     <script src="script.js"></script>

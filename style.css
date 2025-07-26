@@ -1,17 +1,22 @@
-* {
+html, body {
     margin: 0;
     padding: 0;
-    box-sizing: border-box;
-}
-
-body {
     background: #111;
     color: #fff;
     font-family: Arial, sans-serif;
+}
+
+section {
+    width: 100%;
+}
+
+.timer-section {
     height: 100vh;
     display: flex;
-    flex-direction: column;
-    transition: background 0.5s ease;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    background: #111;
 }
 
 #title {
@@ -19,24 +24,18 @@ body {
 }
 
 .container {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    position: relative;
+    text-align: center;
 }
 
 h1 {
-    margin-bottom: 10px;
     font-size: 2rem;
+    margin-bottom: 10px;
 }
 
 .countdown {
     font-size: 12rem;
     font-weight: bold;
     color: #fd0;
-    text-align: center;
 }
 
 .fullscreen-btn {
@@ -50,13 +49,11 @@ h1 {
     cursor: pointer;
 }
 
-/* ✅ 当前时间右下角 */
 .bottom-right {
-    position: fixed;
+    position: absolute;
     right: 30px;
     bottom: 20px;
     text-align: right;
-    z-index: 10;
 }
 
 .current-time {
@@ -74,17 +71,22 @@ h1 {
     color: #ccc;
 }
 
-/* ✅ 设置时间左下角 */
-.bottom-left {
-    position: fixed;
-    left: 30px;
-    bottom: 20px;
-    text-align: left;
-    z-index: 5;
+.setup-section {
+    height: 100vh;
+    background: #222;
+    padding: 40px;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+}
+
+.setup-container {
+    max-width: 600px;
+    width: 100%;
 }
 
 .input-box {
-    margin-bottom: 10px;
+    margin-bottom: 20px;
 }
 
 input {
@@ -102,7 +104,7 @@ button {
 }
 
 .quick-buttons {
-    margin-top: 5px;
+    margin-top: 10px;
 }
 
 .quick-buttons span {

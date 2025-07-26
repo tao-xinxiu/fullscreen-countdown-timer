@@ -35,7 +35,7 @@ function updateCurrentTime() {
 setInterval(updateCurrentTime, 1000);
 updateCurrentTime();
 
-// 生成整点快捷按钮
+// shortcut buttons for setting 9:00 until 22:00
 for (let h = 9; h <= 22; h++) {
     const btn = document.createElement("button");
     btn.textContent = `${String(h).padStart(2,'0')}:00`;
@@ -47,7 +47,7 @@ for (let h = 9; h <= 22; h++) {
     quickBtnContainer.appendChild(btn);
 }
 
-// 增量快捷按钮 (+5min, +10min, ...)
+// shortcut buttons for setting +5min, +10min, ...
 const increments = [1, 5, 10, 20, 30, 40, 50, 60, 120];
 increments.forEach(min => {
     const btn = document.createElement("button");
@@ -115,11 +115,18 @@ function stopCountdown() {
     document.body.style.background = "#111";
 }
 
-// 全屏切换
 fullscreenBtn.addEventListener("click", () => {
     if (!document.fullscreenElement) {
         document.documentElement.requestFullscreen();
     } else {
         document.exitFullscreen();
+    }
+});
+
+document.addEventListener("fullscreenchange", () => {
+    if (document.fullscreenElement) {
+        fullscreenBtn.textContent = "✕";  // 进入全屏后显示“退出”图标
+    } else {
+        fullscreenBtn.textContent = "⛶";  // 退出全屏后恢复原图标
     }
 });
