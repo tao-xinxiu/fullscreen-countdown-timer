@@ -30,7 +30,7 @@ function updateCurrentTime() {
     const dateStr = now.toISOString().split('T')[0]; 
     const weekday = weekdays[now.getDay()];
     timeLine.textContent = `${hh}:${mm}:${ss}`;
-    dateLine.textContent = `${dateStr} (${weekday})`;
+    dateLine.textContent = `${dateStr} ${weekday}`;
 }
 setInterval(updateCurrentTime, 1000);
 updateCurrentTime();
@@ -48,10 +48,10 @@ for (let h = 9; h <= 22; h++) {
 }
 
 // 增量快捷按钮 (+5min, +10min, ...)
-const increments = [5, 10, 20, 30, 60, 120];
+const increments = [1, 5, 10, 20, 30, 40, 50, 60, 120];
 increments.forEach(min => {
     const btn = document.createElement("button");
-    btn.textContent = `+${min}min`;
+    btn.textContent = min < 60 ? `+${min}min` : `+${min/60}h`;
     btn.addEventListener("click", () => {
         const now = new Date();
         const target = new Date(now.getTime() + min * 60000);
@@ -102,7 +102,7 @@ function startCountdown() {
             clearInterval(timer);
             countdownEl.textContent = "TIME UP!";
             alarmSound.play();
-            document.body.style.background = "#c62828";
+            document.body.style.background = "#009";
             titleEl.textContent = "Countdown Timer";
         }
     }, 1000);

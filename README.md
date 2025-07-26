@@ -2,6 +2,9 @@
 
 A fullscreen countdown timer with customizable target time, quick presets, current time/date display, fullscreen toggle, and stop functionality. Ideal for presentations, focus sessions, workouts, or any time-based activity.
 
+## 🌐 Live Demo
+[Try it here](https://tao-xinxiu.github.io/fullscreen-countdown-timer/)
+
 ## ✨ Features
 - 🖥️ **Fullscreen Display**: Large yellow countdown timer centered on the screen with a one-click toggle for distraction-free view..
 - ⏰ **Set Target Time**: Specify any hour/minute for today's countdown.

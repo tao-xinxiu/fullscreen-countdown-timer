@@ -14,6 +14,10 @@ body {
     transition: background 0.5s ease;
 }
 
+#title {
+    color: #fd0;
+}
+
 .container {
     flex: 1;
     display: flex;
@@ -31,7 +35,7 @@ h1 {
 .countdown {
     font-size: 12rem;
     font-weight: bold;
-    color: yellow;
+    color: #fd0;
     text-align: center;
 }
 
@@ -60,9 +64,9 @@ h1 {
 }
 
 #timeLine {
-    font-size: 2.5rem;
+    font-size: 3.1rem;
     font-weight: bold;
-    color: #0ff;
+    color: #0df;
 }
 
 #dateLine {
@@ -85,14 +89,14 @@ h1 {
 
 input {
     padding: 6px;
-    font-size: 1.1rem;
+    font-size: .8rem;
     width: 70px;
     text-align: center;
 }
 
 button {
     padding: 6px 14px;
-    font-size: 1rem;
+    font-size: .8rem;
     margin-left: 8px;
     cursor: pointer;
 }
@@ -109,5 +113,6 @@ button {
 .quick-buttons button {
     margin: 3px;
     padding: 5px 10px;
-    font-size: 0.9rem;
+    font-size: 0.7rem;
+    width: 60px;
 }
