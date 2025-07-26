@@ -1,0 +1,113 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background: #111;
+    color: #fff;
+    font-family: Arial, sans-serif;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    transition: background 0.5s ease;
+}
+
+.container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+}
+
+h1 {
+    margin-bottom: 10px;
+    font-size: 2rem;
+}
+
+.countdown {
+    font-size: 12rem;
+    font-weight: bold;
+    color: yellow;
+    text-align: center;
+}
+
+.fullscreen-btn {
+    position: absolute;
+    top: 10px;
+    right: 20px;
+    background: transparent;
+    border: none;
+    font-size: 2rem;
+    color: #fff;
+    cursor: pointer;
+}
+
+/* ✅ 当前时间右下角 */
+.bottom-right {
+    position: fixed;
+    right: 30px;
+    bottom: 20px;
+    text-align: right;
+    z-index: 10;
+}
+
+.current-time {
+    font-family: monospace;
+}
+
+#timeLine {
+    font-size: 2.5rem;
+    font-weight: bold;
+    color: #0ff;
+}
+
+#dateLine {
+    font-size: 1.3rem;
+    color: #ccc;
+}
+
+/* ✅ 设置时间左下角 */
+.bottom-left {
+    position: fixed;
+    left: 30px;
+    bottom: 20px;
+    text-align: left;
+    z-index: 5;
+}
+
+.input-box {
+    margin-bottom: 10px;
+}
+
+input {
+    padding: 6px;
+    font-size: 1.1rem;
+    width: 70px;
+    text-align: center;
+}
+
+button {
+    padding: 6px 14px;
+    font-size: 1rem;
+    margin-left: 8px;
+    cursor: pointer;
+}
+
+.quick-buttons {
+    margin-top: 5px;
+}
+
+.quick-buttons span {
+    font-weight: bold;
+    margin-right: 10px;
+}
+
+.quick-buttons button {
+    margin: 3px;
+    padding: 5px 10px;
+    font-size: 0.9rem;
+}
