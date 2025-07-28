@@ -13,13 +13,20 @@ const dateLine = document.getElementById("dateLine");
 const fullscreenBtn = document.getElementById("fullscreenBtn");
 const quickBtnContainer = document.getElementById("quickBtnContainer");
 const quickAddContainer = document.getElementById("quickAddContainer");
+const quickTweakContainer = document.getElementById("quickTweakContainer");
 
 const weekdays = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
 
 function formatTime(seconds) {
-    const m = String(Math.floor(seconds / 60)).padStart(2, '0');
-    const s = String(seconds % 60).padStart(2, '0');
-    return `${m}:${s}`;
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = seconds % 60;
+
+    if (h > 0) {
+        return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+    } else {
+        return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+    }
 }
 
 function updateCurrentTime() {
@@ -47,7 +54,7 @@ for (let h = 9; h <= 22; h++) {
     quickBtnContainer.appendChild(btn);
 }
 
-// shortcut buttons for setting +5min, +10min, ...
+// shortcut buttons for setting +5min, +10min, ... based on current time
 const increments = [1, 5, 10, 20, 30, 40, 50, 60, 120];
 increments.forEach(min => {
     const btn = document.createElement("button");
@@ -62,13 +69,22 @@ increments.forEach(min => {
     quickAddContainer.appendChild(btn);
 });
 
-startBtn.addEventListener("click", startCountdown);
-stopBtn.addEventListener("click", stopCountdown);
+// shortcut buttons for setting -1min, -5min, ... based on set time
+const tweaks = [-1, -2, -5, -10, 1, 2, 5, 10];
+tweaks.forEach(min => {
+    const tweakBtn = document.createElement("button");
+    tweakBtn.textContent = min < 0 ? `${min}min` : `+${min}min`;
+    tweakBtn.addEventListener("click", () => {
+        const base = targetTime();
+        const target = new Date(base.getTime() + min * 60000);
+        hourInput.value = target.getHours();
+        minuteInput.value = String(target.getMinutes()).padStart(2,'0');
+        startCountdown();
+    });
+    quickTweakContainer.appendChild(tweakBtn);
+});
 
-function startCountdown() {
-    clearInterval(timer);
-    document.body.style.background = "#111";
-
+function targetTime() {
     const h = parseInt(hourInput.value, 10);
     let m = parseInt(minuteInput.value, 10);
 
@@ -90,8 +106,22 @@ function startCountdown() {
         return;
     }
 
+    return target;
+}
+
+startBtn.addEventListener("click", startCountdown);
+stopBtn.addEventListener("click", stopCountdown);
+
+function startCountdown() {
+    clearInterval(timer);
+    document.body.style.background = "#111";
+
+    const h = parseInt(hourInput.value, 10);
+    let m = parseInt(minuteInput.value, 10);
+    const now = new Date();
+
     titleEl.textContent = `Time until ${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
-    remainingTime = Math.floor((target - now) / 1000);
+    remainingTime = Math.floor((targetTime() - now) / 1000);
     countdownEl.textContent = formatTime(remainingTime);
 
     timer = setInterval(() => {
