@@ -89,15 +89,29 @@ function startCountdown() {
     enableWakeLock();
     clearInterval(timer);
     document.body.style.background = "#111";
-    const target = targetTime();
-    if (!target) return;
-    const now = new Date();
+
+    const h = parseInt(hourInput.value, 10);
+    const m = parseInt(minuteInput.value, 10);
+
+    if (!isValidHourMinute(h, m)) {
+        alert("Please enter a valid hour (0-23) and minute (0-59)!");
+        return;
+    }
+
+    const target = new Date();
+    target.setHours(h);
+    target.setMinutes(m);
+    target.setSeconds(0);
+
     titleEl.textContent = `Time until ${target.toLocaleTimeString()}`;
+    const now = new Date();
     remainingTime = Math.floor((target - now) / 1000);
     countdownEl.textContent = formatTime(remainingTime);
+
     timer = setInterval(() => {
         remainingTime--;
         countdownEl.textContent = formatTime(remainingTime);
+
         if (remainingTime <= 0) {
             clearInterval(timer);
             countdownEl.textContent = "TIME UP!";
@@ -173,7 +187,7 @@ function setupShortcutButtons() {
             let m = parseInt(minuteInput.value, 10);
 
             // If either input is invalid, use current time
-            if (isNaN(h) || isNaN(m)) {
+            if (!isValidHourMinute(h, m)) {
                 const now = new Date();
                 h = now.getHours();
                 m = now.getMinutes();
@@ -184,13 +198,32 @@ function setupShortcutButtons() {
             base.setHours(h);
             base.setMinutes(m);
             base.setSeconds(0);
+            base.setMilliseconds(0);
 
             // Add/subtract the tweak minutes
             base.setMinutes(base.getMinutes() + min);
 
+            // Get new hour and minute
+            const newH = base.getHours();
+            const newM = base.getMinutes();
+
+            // Validate new values before updating
+            if (!isValidHourMinute(newH, newM)) {
+                alert("Resulting time is invalid. Please check your input.");
+                return;
+            }
+
+            // Check if the new time is in the past (today)
+            const now = new Date();
+            now.setSeconds(0, 0); // ignore seconds/milliseconds
+            if (base < now) {
+                alert("Resulting time is in the past. Please choose a valid time.");
+                return;
+            }
+
             // Update inputs
-            hourInput.value = base.getHours();
-            minuteInput.value = String(base.getMinutes()).padStart(2, '0');
+            hourInput.value = newH;
+            minuteInput.value = String(newM).padStart(2, '0');
 
             // Restart countdown
             startCountdown();
@@ -210,3 +243,12 @@ function initialize() {
 
 // ===== Start App =====
 initialize();
+
+function isValidHourMinute(h, m) {
+    return (
+        Number.isInteger(h) &&
+        Number.isInteger(m) &&
+        h >= 0 && h <= 23 &&
+        m >= 0 && m <= 59
+    );
+}
