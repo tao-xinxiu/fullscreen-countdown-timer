@@ -169,22 +169,29 @@ function setupShortcutButtons() {
         const tweakBtn = document.createElement("button");
         tweakBtn.textContent = min < 0 ? `${min}min` : `+${min}min`;
         tweakBtn.addEventListener("click", () => {
-            const h = parseInt(hourInput.value, 10);
-            const m = parseInt(minuteInput.value, 10);
+            let h = parseInt(hourInput.value, 10);
+            let m = parseInt(minuteInput.value, 10);
+
+            // If either input is invalid, use current time
             if (isNaN(h) || isNaN(m)) {
-                alert("Please enter a valid hour and minute!");
-                return;
+                const now = new Date();
+                h = now.getHours();
+                m = now.getMinutes();
             }
-            // Create a date with today's date and the current input time
+
+            // Create a date with the base time
             const base = new Date();
             base.setHours(h);
             base.setMinutes(m);
             base.setSeconds(0);
+
             // Add/subtract the tweak minutes
             base.setMinutes(base.getMinutes() + min);
+
             // Update inputs
             hourInput.value = base.getHours();
             minuteInput.value = String(base.getMinutes()).padStart(2, '0');
+
             // Restart countdown
             startCountdown();
         });
