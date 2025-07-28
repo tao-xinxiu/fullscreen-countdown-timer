@@ -135,6 +135,10 @@ function setupEventListeners() {
     startBtn.addEventListener("click", startCountdown);
     stopBtn.addEventListener("click", stopCountdown);
     fullscreenBtn.addEventListener("click", () => {
+        if (isStandaloneMode()) {
+            location.reload(); // Refresh the page
+            return;
+        }
         if (!document.fullscreenElement) {
             document.documentElement.requestFullscreen();
         } else {
@@ -142,7 +146,9 @@ function setupEventListeners() {
         }
     });
     document.addEventListener("fullscreenchange", () => {
-        fullscreenBtn.textContent = document.fullscreenElement ? "✕" : "⛶";
+        if (!isStandaloneMode()) {
+            fullscreenBtn.textContent = document.fullscreenElement ? "✕" : "⛶";
+        }
     });
     window.addEventListener('resize', setVH);
     nowBtn.addEventListener("click", () => {
@@ -239,6 +245,11 @@ function initialize() {
     setInterval(updateCurrentTime, 1000);
     setupEventListeners();
     setupShortcutButtons();
+
+    // Change fullscreen button to refresh if in standalone mode
+    if (isStandaloneMode()) {
+        fullscreenBtn.textContent = "⟳"; // or use a refresh icon of your choice
+    }
 }
 
 // ===== Start App =====
@@ -251,4 +262,8 @@ function isValidHourMinute(h, m) {
         h >= 0 && h <= 23 &&
         m >= 0 && m <= 59
     );
+}
+
+function isStandaloneMode() {
+    return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
 }
