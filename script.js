@@ -113,6 +113,7 @@ startBtn.addEventListener("click", startCountdown);
 stopBtn.addEventListener("click", stopCountdown);
 
 function startCountdown() {
+    enableWakeLock();
     clearInterval(timer);
     document.body.style.background = "#111";
 
@@ -139,6 +140,7 @@ function startCountdown() {
 }
 
 function stopCountdown() {
+    releaseWakeLock();
     clearInterval(timer);
     countdownEl.textContent = "00:00";
     titleEl.textContent = "Countdown Timer";
@@ -167,3 +169,24 @@ function setVH() {
 }
 window.addEventListener('resize', setVH);
 setVH();
+
+let wakeLock = null;
+
+async function enableWakeLock() {
+    try {
+        if ("wakeLock" in navigator) {
+            wakeLock = await navigator.wakeLock.request("screen");
+            console.log("Screen Wake Lock enabled");
+        }
+    } catch (err) {
+        console.error("Wake Lock failed:", err);
+    }
+}
+
+function releaseWakeLock() {
+    if (wakeLock !== null) {
+        wakeLock.release();
+        wakeLock = null;
+        console.log("Screen Wake Lock released");
+    }
+}
