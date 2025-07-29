@@ -28,23 +28,26 @@
 
     <section class="setup-section">
         <div class="setup-container">
-            <div class="input-box">
-                <label>Set Time:</label>
-                <input type="number" id="hourInput" placeholder="HH" min="0" max="23"> :
-                <input type="number" id="minuteInput" placeholder="MM" min="0" max="59">
-                <button id="startBtn">Start</button>
-                <button id="stopBtn">Stop</button>
-                <div class="quick-buttons">
-                    <div id="quickTweakContainer">
-                        <button id="nowBtn">Now</button>
-                        <!-- tweak buttons will be added here -->
-                    </div>
-                </div>
-            </div>
             <div class="quick-buttons">
-                <label>Quick Set</label>
+                <label class="quick-label">Quick Set</label>
                 <div id="quickBtnContainer"></div>
                 <div id="quickAddContainer"></div>
+            </div>
+            <div class="input-box">
+                <div class="set-time-row">
+                    <label class="set-time-label">Set Time:</label>
+                    <button id="nowBtn" aria-label="Set timer to now">⏰ Now</button>
+                    <input type="number" id="hourInput" placeholder="HH" min="0" max="23">:
+                    <input type="number" id="minuteInput" placeholder="MM" min="0" max="59">                    
+                    <button id="startBtn" aria-label="Start the countdown timer">▶️ Start</button>
+                    <button id="stopBtn" aria-label="Stop the countdown timer">⏹️ Stop</button>
+                </div>
+                <div class="quick-buttons">
+                    <div id="quickTweakContainer">                        
+                        <div class="tweak-row" id="tweakRow1"></div>
+                        <div class="tweak-row" id="tweakRow2"></div>
+                    </div>
+                </div>
             </div>
         </div>
     </section>

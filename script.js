@@ -13,11 +13,15 @@ const quickBtnContainer = document.getElementById("quickBtnContainer");
 const quickAddContainer = document.getElementById("quickAddContainer");
 const quickTweakContainer = document.getElementById("quickTweakContainer");
 const nowBtn = document.getElementById("nowBtn"); // Fixed selector
+const tweakRow1 = document.getElementById("tweakRow1");
+const tweakRow2 = document.getElementById("tweakRow2");
 
 // ===== Constants =====
 const weekdays = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
-const increments = [1, 5, 10, 20, 30, 40, 50, 60, 120];
-const tweaks = [-1, -2, -5, -10, 1, 2, 5, 10];
+const increments = [2, 5, 10, 20, 30, 60, 120];
+// const tweaks = [-1, -2, -5, -10, -30, 1, 2, 5, 10, 30];
+const tweakRow1Mins = [-5, -2, -1, 1, 2, 5];
+const tweakRow2Mins = [-60, -30, -10, 10, 30, 60];
 
 // ===== State =====
 let timer;
@@ -160,21 +164,36 @@ function setupEventListeners() {
 
 // ===== Shortcut Buttons Setup =====
 function setupShortcutButtons() {
-    // Hour quick set buttons (9:00 to 22:00)
-    for (let h = 9; h <= 22; h++) {
-        const btn = document.createElement("button");
-        btn.textContent = `${String(h).padStart(2,'0')}:00`;
-        btn.addEventListener("click", () => {
-            hourInput.value = h;
-            minuteInput.value = "00";
-            startCountdown();
+    // Hour and half-hour quick set buttons
+    const quickBtnContainer = document.getElementById("quickBtnContainer");
+    quickBtnContainer.innerHTML = "";
+    const morning = [[9, 0], [9, 30], [10, 0], [10, 30], [11, 0], [11, 30], [12, 0], [12, 30]];
+    const afternoon = [[13, 0], [13, 30], [14, 0], [14, 30],[15, 0], [15, 30], [16, 0], [16, 30], [17, 0], [17, 30], [18,0]];
+    const night = [[19, 0], [20, 0], [21, 0], [22, 0]];
+    
+    // Helper to create a row
+    function createHourRow(arr) {
+        const row = document.createElement("div");
+        row.className = "quick-hour-row";
+        arr.forEach(([h, min]) => {
+            const btn = document.createElement("button");
+            btn.textContent = `${String(h).padStart(2,'0')}:${min === 0 ? '00' : '30'}`;
+            btn.addEventListener("click", () => {
+                hourInput.value = h;
+                minuteInput.value = String(min).padStart(2,'0');
+                startCountdown();
+            });
+            row.appendChild(btn);
         });
-        quickBtnContainer.appendChild(btn);
+        return row;
     }
-    // Quick add increments (+min/h)
+    quickBtnContainer.appendChild(createHourRow(morning));
+    quickBtnContainer.appendChild(createHourRow(afternoon));
+    quickBtnContainer.appendChild(createHourRow(night));
+    // Quick add increments (min/h) based on now
     increments.forEach(min => {
         const btn = document.createElement("button");
-        btn.textContent = min < 60 ? `+${min}min` : `+${min/60}h`;
+        btn.textContent = min < 60 ? `${min}min` : `${min/60}h`;
         btn.addEventListener("click", () => {
             const now = new Date();
             const target = new Date(now.getTime() + min * 60000);
@@ -184,57 +203,48 @@ function setupShortcutButtons() {
         });
         quickAddContainer.appendChild(btn);
     });
-    // Quick tweak buttons (-/+min)
-    tweaks.forEach(min => {
+    // Quick tweak buttons (-/+min) based on input time
+    // Row 1
+    [...tweakRow1Mins].forEach(min => {
         const tweakBtn = document.createElement("button");
         tweakBtn.textContent = min < 0 ? `${min}min` : `+${min}min`;
         tweakBtn.addEventListener("click", () => {
             let h = parseInt(hourInput.value, 10);
             let m = parseInt(minuteInput.value, 10);
-
-            // If either input is invalid, use current time
             if (!isValidHourMinute(h, m)) {
                 const now = new Date();
                 h = now.getHours();
                 m = now.getMinutes();
             }
-
-            // Create a date with the base time
-            const base = new Date();
-            base.setHours(h);
-            base.setMinutes(m);
-            base.setSeconds(0);
-            base.setMilliseconds(0);
-
-            // Add/subtract the tweak minutes
-            base.setMinutes(base.getMinutes() + min);
-
-            // Get new hour and minute
-            const newH = base.getHours();
-            const newM = base.getMinutes();
-
-            // Validate new values before updating
-            if (!isValidHourMinute(newH, newM)) {
-                alert("Resulting time is invalid. Please check your input.");
-                return;
-            }
-
-            // Check if the new time is in the past (today)
-            const now = new Date();
-            now.setSeconds(0, 0); // ignore seconds/milliseconds
-            if (base < now) {
-                alert("Resulting time is in the past. Please choose a valid time.");
-                return;
-            }
-
-            // Update inputs
-            hourInput.value = newH;
-            minuteInput.value = String(newM).padStart(2, '0');
-
-            // Restart countdown
-            startCountdown();
+            let total = h * 60 + m + min;
+            if (total < 0) total = 0;
+            h = Math.floor(total / 60);
+            m = total % 60;
+            hourInput.value = h;
+            minuteInput.value = String(m).padStart(2, '0');
         });
-        quickTweakContainer.appendChild(tweakBtn);
+        tweakRow1.appendChild(tweakBtn);
+    });
+    // Row 2
+    [...tweakRow2Mins].forEach(min => {
+        const tweakBtn = document.createElement("button");
+        tweakBtn.textContent = min < 0 ? `${min}min` : `+${min}min`;
+        tweakBtn.addEventListener("click", () => {
+            let h = parseInt(hourInput.value, 10);
+            let m = parseInt(minuteInput.value, 10);
+            if (!isValidHourMinute(h, m)) {
+                const now = new Date();
+                h = now.getHours();
+                m = now.getMinutes();
+            }
+            let total = h * 60 + m + min;
+            if (total < 0) total = 0;
+            h = Math.floor(total / 60);
+            m = total % 60;
+            hourInput.value = h;
+            minuteInput.value = String(m).padStart(2, '0');
+        });
+        tweakRow2.appendChild(tweakBtn);
     });
 }
 
