@@ -17,7 +17,7 @@ const tweakRow1 = document.getElementById("tweakRow1");
 const tweakRow2 = document.getElementById("tweakRow2");
 
 // ===== Constants =====
-const weekdays = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+const weekdays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const increments = [2, 5, 10, 20, 30, 60, 120];
 // const tweaks = [-1, -2, -5, -10, -30, 1, 2, 5, 10, 30];
 const tweakRow1Mins = [-5, -2, -1, 1, 2, 5];
@@ -34,8 +34,8 @@ function formatTime(seconds) {
     const m = Math.floor((seconds % 3600) / 60);
     const s = seconds % 60;
     return h > 0
-        ? `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`
-        : `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+        ? `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+        : `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
 function updateCurrentTime() {
@@ -43,7 +43,7 @@ function updateCurrentTime() {
     const hh = String(now.getHours()).padStart(2, '0');
     const mm = String(now.getMinutes()).padStart(2, '0');
     const ss = String(now.getSeconds()).padStart(2, '0');
-    const dateStr = now.toISOString().split('T')[0]; 
+    const dateStr = now.toISOString().split('T')[0];
     const weekday = weekdays[now.getDay()];
     timeLine.textContent = `${hh}:${mm}:${ss}`;
     dateLine.textContent = `${dateStr} ${weekday}`;
@@ -57,16 +57,12 @@ function setVH() {
 function targetTime() {
     const h = parseInt(hourInput.value, 10);
     let m = parseInt(minuteInput.value, 10);
-    if (isNaN(h) || isNaN(m) || h < 0 || h > 23 || m < 0 || m > 59) {
-        alert("Please enter a valid hour and minute!");
+    if (isNaN(h) || isNaN(m) || !isValidHourMinute(h, m)) {
+        alert("Please enter a valid hour (0-23) and minute (0-59)!");
         return;
     }
     minuteInput.value = String(m).padStart(2, '0');
-    const target = new Date();
-    target.setHours(h);
-    target.setMinutes(m);
-    target.setSeconds(0);
-    return target;
+    return getTargetTime(h, m);
 }
 
 async function enableWakeLock() {
@@ -94,18 +90,7 @@ function startCountdown() {
     clearInterval(timer);
     document.body.style.background = "#111";
 
-    const h = parseInt(hourInput.value, 10);
-    const m = parseInt(minuteInput.value, 10);
-
-    if (!isValidHourMinute(h, m)) {
-        alert("Please enter a valid hour (0-23) and minute (0-59)!");
-        return;
-    }
-
-    const target = new Date();
-    target.setHours(h);
-    target.setMinutes(m);
-    target.setSeconds(0);
+    const target = targetTime();
 
     titleEl.textContent = `Time until ${target.toLocaleTimeString()}`;
     const now = new Date();
@@ -158,7 +143,7 @@ function setupEventListeners() {
     nowBtn.addEventListener("click", () => {
         const target = new Date();
         hourInput.value = target.getHours();
-        minuteInput.value = String(target.getMinutes()).padStart(2,'0');
+        minuteInput.value = String(target.getMinutes()).padStart(2, '0');
     });
 }
 
@@ -168,19 +153,19 @@ function setupShortcutButtons() {
     const quickBtnContainer = document.getElementById("quickBtnContainer");
     quickBtnContainer.innerHTML = "";
     const morning = [[9, 0], [9, 30], [10, 0], [10, 30], [11, 0], [11, 30], [12, 0], [12, 30]];
-    const afternoon = [[13, 0], [13, 30], [14, 0], [14, 30],[15, 0], [15, 30], [16, 0], [16, 30], [17, 0], [17, 30], [18,0]];
+    const afternoon = [[13, 0], [13, 30], [14, 0], [14, 30], [15, 0], [15, 30], [16, 0], [16, 30], [17, 0], [17, 30], [18, 0]];
     const night = [[19, 0], [20, 0], [21, 0], [22, 0]];
-    
+
     // Helper to create a row
     function createHourRow(arr) {
         const row = document.createElement("div");
         row.className = "quick-hour-row";
         arr.forEach(([h, min]) => {
             const btn = document.createElement("button");
-            btn.textContent = `${String(h).padStart(2,'0')}:${min === 0 ? '00' : '30'}`;
+            btn.textContent = `${String(h).padStart(2, '0')}:${min === 0 ? '00' : '30'}`;
             btn.addEventListener("click", () => {
                 hourInput.value = h;
-                minuteInput.value = String(min).padStart(2,'0');
+                minuteInput.value = String(min).padStart(2, '0');
                 startCountdown();
             });
             row.appendChild(btn);
@@ -193,59 +178,51 @@ function setupShortcutButtons() {
     // Quick add increments (min/h) based on now
     increments.forEach(min => {
         const btn = document.createElement("button");
-        btn.textContent = min < 60 ? `${min}min` : `${min/60}h`;
+        btn.textContent = min < 60 ? `${min}min` : `${min / 60}h`;
         btn.addEventListener("click", () => {
             const now = new Date();
             const target = new Date(now.getTime() + min * 60000);
             hourInput.value = target.getHours();
-            minuteInput.value = String(target.getMinutes()).padStart(2,'0');
+            minuteInput.value = String(target.getMinutes()).padStart(2, '0');
             startCountdown();
         });
         quickAddContainer.appendChild(btn);
     });
     // Quick tweak buttons (-/+min) based on input time
     // Row 1
-    [...tweakRow1Mins].forEach(min => {
-        const tweakBtn = document.createElement("button");
-        tweakBtn.textContent = min < 0 ? `${min}min` : `+${min}min`;
-        tweakBtn.addEventListener("click", () => {
-            let h = parseInt(hourInput.value, 10);
-            let m = parseInt(minuteInput.value, 10);
-            if (!isValidHourMinute(h, m)) {
-                const now = new Date();
-                h = now.getHours();
-                m = now.getMinutes();
-            }
-            let total = h * 60 + m + min;
-            if (total < 0) total = 0;
-            h = Math.floor(total / 60);
-            m = total % 60;
-            hourInput.value = h;
-            minuteInput.value = String(m).padStart(2, '0');
-        });
-        tweakRow1.appendChild(tweakBtn);
-    });
+    [...tweakRow1Mins].forEach(min => { createTweakButton(min, tweakRow1) });
     // Row 2
-    [...tweakRow2Mins].forEach(min => {
-        const tweakBtn = document.createElement("button");
-        tweakBtn.textContent = min < 0 ? `${min}min` : `+${min}min`;
-        tweakBtn.addEventListener("click", () => {
-            let h = parseInt(hourInput.value, 10);
-            let m = parseInt(minuteInput.value, 10);
-            if (!isValidHourMinute(h, m)) {
-                const now = new Date();
-                h = now.getHours();
-                m = now.getMinutes();
-            }
-            let total = h * 60 + m + min;
-            if (total < 0) total = 0;
-            h = Math.floor(total / 60);
-            m = total % 60;
-            hourInput.value = h;
-            minuteInput.value = String(m).padStart(2, '0');
-        });
-        tweakRow2.appendChild(tweakBtn);
+    [...tweakRow2Mins].forEach(min => { createTweakButton(min, tweakRow2) });
+}
+
+function createTweakButton(min, tweakRow) {
+    const tweakBtn = document.createElement("button");
+    tweakBtn.textContent = min < 0 ? `${min}min` : `+${min}min`;
+    tweakBtn.addEventListener("click", () => {
+        adjustInputTimeBy(min);
     });
+    tweakRow.appendChild(tweakBtn);
+}
+
+function adjustInputTimeBy(min) {
+    let h = parseInt(hourInput.value, 10);
+    let m = parseInt(minuteInput.value, 10);
+    if (!isValidHourMinute(h, m)) {
+        const now = new Date();
+        h = now.getHours();
+        m = now.getMinutes();
+    }
+    let total = h * 60 + m + min;
+    if (total < 0) total = 0;
+    h = Math.floor(total / 60);
+    m = total % 60;
+    hourInput.value = h;
+    minuteInput.value = String(m).padStart(2, '0');
+    if (isValidHourMinute(h, m) && isValidTarget(h, m)) {
+        startCountdown();
+    } else {
+        stopCountdown();
+    }
 }
 
 // ===== Initialization =====
@@ -272,6 +249,19 @@ function isValidHourMinute(h, m) {
         h >= 0 && h <= 23 &&
         m >= 0 && m <= 59
     );
+}
+
+function isValidTarget(h, m) {
+    // target time is after now
+    return getTargetTime(h, m) > new Date();
+}
+
+function getTargetTime(h, m) {
+    const target = new Date();
+    target.setHours(h);
+    target.setMinutes(m);
+    target.setSeconds(0);
+    return target;
 }
 
 function isStandaloneMode() {
