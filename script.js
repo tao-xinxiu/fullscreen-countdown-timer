@@ -15,6 +15,7 @@ const quickTweakContainer = document.getElementById("quickTweakContainer");
 const nowBtn = document.getElementById("nowBtn"); // Fixed selector
 const tweakRow1 = document.getElementById("tweakRow1");
 const tweakRow2 = document.getElementById("tweakRow2");
+const countdownPreview = document.getElementById("countdownPreview");
 
 // ===== Constants =====
 const weekdays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -47,6 +48,39 @@ function updateCurrentTime() {
     const weekday = weekdays[now.getDay()];
     timeLine.textContent = `${hh}:${mm}:${ss}`;
     dateLine.textContent = `${dateStr} ${weekday}`;
+}
+
+function updateCountdownPreview() {
+    const h = parseInt(hourInput.value, 10);
+    const m = parseInt(minuteInput.value, 10);
+    
+    if (isValidHourMinute(h, m)) {
+        const target = getTargetTime(h, m);
+        const now = new Date();
+        const remainingSeconds = Math.floor((target - now) / 1000);
+        
+        if (remainingSeconds > 0) {
+            const hours = Math.floor(remainingSeconds / 3600);
+            const minutes = Math.ceil((remainingSeconds % 3600) / 60);
+            
+            let previewText = "";
+            if (hours > 0) {
+                previewText += `${hours}h`;
+            }
+            if (minutes > 0 || hours === 0) {
+                previewText += `${minutes}min`;
+            }
+            
+            countdownPreview.textContent = previewText.trim();
+            countdownPreview.style.color = "#fd0";
+        } else {
+            countdownPreview.textContent = "0min";
+            countdownPreview.style.color = "#666";
+        }
+    } else {
+        countdownPreview.textContent = "0min";
+        countdownPreview.style.color = "#666";
+    }
 }
 
 function setVH() {
@@ -144,7 +178,12 @@ function setupEventListeners() {
         const target = new Date();
         hourInput.value = target.getHours();
         minuteInput.value = String(target.getMinutes()).padStart(2, '0');
+        updateCountdownPreview();
     });
+    
+    // Add event listeners for input changes to update preview
+    hourInput.addEventListener("input", updateCountdownPreview);
+    minuteInput.addEventListener("input", updateCountdownPreview);
 }
 
 // ===== Shortcut Buttons Setup =====
@@ -166,6 +205,7 @@ function setupShortcutButtons() {
             btn.addEventListener("click", () => {
                 hourInput.value = h;
                 minuteInput.value = String(min).padStart(2, '0');
+                updateCountdownPreview();
                 startCountdown();
             });
             row.appendChild(btn);
@@ -184,6 +224,7 @@ function setupShortcutButtons() {
             const target = new Date(now.getTime() + min * 60000);
             hourInput.value = target.getHours();
             minuteInput.value = String(target.getMinutes()).padStart(2, '0');
+            updateCountdownPreview();
             startCountdown();
         });
         quickAddContainer.appendChild(btn);
@@ -218,6 +259,7 @@ function adjustInputTimeBy(min) {
     m = total % 60;
     hourInput.value = h;
     minuteInput.value = String(m).padStart(2, '0');
+    updateCountdownPreview();
     if (isValidHourMinute(h, m) && isValidTarget(h, m)) {
         startCountdown();
     } else {
@@ -232,6 +274,7 @@ function initialize() {
     setInterval(updateCurrentTime, 1000);
     setupEventListeners();
     setupShortcutButtons();
+    updateCountdownPreview(); // Initialize the preview
 
     // Change fullscreen button to refresh if in standalone mode
     if (isStandaloneMode()) {

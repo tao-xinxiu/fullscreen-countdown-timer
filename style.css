@@ -248,3 +248,16 @@ button {
     border-color: #0df;
     outline: none;
 }
+
+.countdown-preview {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #fd0;
+    background: #222;
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: none;
+    min-width: 80px;
+    text-align: center;
+    font-family: monospace;
+}
