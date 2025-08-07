@@ -16,6 +16,12 @@ const nowBtn = document.getElementById("nowBtn"); // Fixed selector
 const tweakRow1 = document.getElementById("tweakRow1");
 const tweakRow2 = document.getElementById("tweakRow2");
 const countdownPreview = document.getElementById("countdownPreview");
+const timerSelect = document.getElementById("timerSelect");
+const addTimerBtn = document.getElementById("addTimerBtn");
+const renameTimerBtn = document.getElementById("renameTimerBtn");
+const additionalTimers = document.getElementById("additionalTimers");
+const bottomRight = document.querySelector(".bottom-right");
+const bottomLeft = document.querySelector(".bottom-left");
 
 // ===== Constants =====
 const weekdays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -28,15 +34,25 @@ const tweakRow2Mins = [-60, -30, -10, 10, 30, 60];
 let timer;
 let remainingTime = 0;
 let wakeLock = null;
+let timers = {
+    main: {
+        name: "Main Timer",
+        target: null,
+        remaining: 0,
+        timer: null,
+        isRunning: false
+    }
+};
+let currentTimerId = "main";
+let timerOrder = ["main"]; // Track the order of timers
 
 // ===== Utility Functions =====
 function formatTime(seconds) {
     const h = Math.floor(seconds / 3600);
     const m = Math.floor((seconds % 3600) / 60);
     const s = seconds % 60;
-    return h > 0
-        ? `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
-        : `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    // Always use hh:mm:ss format for consistent alignment
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
 function updateCurrentTime() {
@@ -83,6 +99,162 @@ function updateCountdownPreview() {
     }
 }
 
+function addNewTimer() {
+    const timerName = prompt("Enter timer name:");
+    if (timerName && timerName.trim()) {
+        const timerId = `timer_${Date.now()}`;
+        timers[timerId] = {
+            name: timerName.trim(),
+            target: null,
+            remaining: 0,
+            timer: null,
+            isRunning: false
+        };
+        // Add to timer order
+        timerOrder.push(timerId);
+        // Auto-switch to the newly added timer
+        currentTimerId = timerId;
+        updateTimerSelect();
+        setCurrentTimer(timerId);
+        updateAdditionalTimers();
+    }
+}
+
+function deleteTimer(timerId) {
+    if (timerId === "main") {
+        alert("Cannot delete the main timer!");
+        return;
+    }
+    
+    const timer = timers[timerId];
+    if (!timer) return;
+    
+    if (timer.isRunning) {
+        if (timer.timer) {
+            clearInterval(timer.timer);
+        }
+        timer.isRunning = false;
+    }
+    
+    delete timers[timerId];
+    
+    // Remove from timer order
+    const orderIndex = timerOrder.indexOf(timerId);
+    if (orderIndex > -1) {
+        timerOrder.splice(orderIndex, 1);
+    }
+    
+    // If the deleted timer was the current timer, switch to main
+    if (currentTimerId === timerId) {
+        currentTimerId = "main";
+        setCurrentTimer("main");
+    }
+    
+    updateTimerSelect();
+    updateAdditionalTimers();
+}
+
+function renameCurrentTimer() {
+    const currentTimer = getCurrentTimer();
+    if (!currentTimer) return;
+    
+    const newName = prompt("Enter new timer name:", currentTimer.name);
+    if (newName && newName.trim()) {
+        currentTimer.name = newName.trim();
+        updateTimerSelect();
+        updateAdditionalTimers();
+    }
+}
+
+function handleScroll() {
+    const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+    const isScrolled = scrollTop > 50;
+    
+    if (bottomRight && bottomLeft) {
+        if (isScrolled) {
+            bottomRight.classList.add("bottom-hidden");
+            bottomLeft.classList.add("bottom-hidden");
+        } else {
+            bottomRight.classList.remove("bottom-hidden");
+            bottomLeft.classList.remove("bottom-hidden");
+        }
+    }
+}
+
+function updateTimerSelect() {
+    timerSelect.innerHTML = "";
+    Object.keys(timers).forEach(timerId => {
+        const option = document.createElement("option");
+        option.value = timerId;
+        option.textContent = timers[timerId].name;
+        if (timerId === currentTimerId) {
+            option.selected = true;
+        }
+        timerSelect.appendChild(option);
+    });
+}
+
+function updateAdditionalTimers() {
+    if (!additionalTimers) return;
+    
+    additionalTimers.innerHTML = "";
+    
+    // Use timerOrder to maintain the order, but only show running timers
+    timerOrder.forEach(timerId => {
+        if (timerId !== "main" && timers[timerId] && timers[timerId].isRunning) {
+            const timerEl = document.createElement("div");
+            timerEl.className = "additional-timer";
+            timerEl.setAttribute("data-timer-id", timerId);
+            timerEl.draggable = true;
+            
+            // Format end time as hh:mm (24h format)
+            const endTime = timers[timerId].target ? 
+                `${String(timers[timerId].target.getHours()).padStart(2, '0')}:${String(timers[timerId].target.getMinutes()).padStart(2, '0')}` : "";
+            
+            timerEl.innerHTML = `
+                <span class="timer-name">${timers[timerId].name}</span>
+                <span class="timer-end-time">${endTime}</span>
+                <span class="timer-remaining">${formatTime(timers[timerId].remaining)}</span>
+                <button class="delete-timer-btn" data-timer-id="${timerId}" title="Delete timer"><i class="fas fa-trash"></i></button>
+            `;
+            
+            // Add delete button event listener
+            const deleteBtn = timerEl.querySelector('.delete-timer-btn');
+            deleteBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                deleteTimer(timerId);
+            });
+            
+            // Add drag and drop event listeners
+            timerEl.addEventListener('dragstart', handleDragStart);
+            timerEl.addEventListener('dragover', handleDragOver);
+            timerEl.addEventListener('drop', handleDrop);
+            timerEl.addEventListener('dragenter', handleDragEnter);
+            timerEl.addEventListener('dragleave', handleDragLeave);
+            
+            additionalTimers.appendChild(timerEl);
+        }
+    });
+}
+
+function getCurrentTimer() {
+    return timers[currentTimerId];
+}
+
+function setCurrentTimer(timerId) {
+    currentTimerId = timerId;
+    const timer = getCurrentTimer();
+    if (timer && timer.target) {
+        hourInput.value = timer.target.getHours();
+        minuteInput.value = String(timer.target.getMinutes()).padStart(2, '0');
+        updateCountdownPreview();
+    } else {
+        hourInput.value = "";
+        minuteInput.value = "";
+        updateCountdownPreview();
+    }
+}
+
 function setVH() {
     let vh = window.innerHeight * 0.01;
     document.documentElement.style.setProperty('--vh', `${vh}px`);
@@ -120,37 +292,83 @@ function releaseWakeLock() {
 
 // ===== Countdown Logic =====
 function startCountdown() {
-    enableWakeLock();
-    clearInterval(timer);
-    document.body.style.background = "#111";
+    const currentTimer = getCurrentTimer();
+    if (!currentTimer) return;
 
     const target = targetTime();
+    if (!target) return;
 
-    titleEl.textContent = `Time until ${target.toLocaleTimeString()}`;
-    const now = new Date();
-    remainingTime = Math.floor((target - now) / 1000);
-    countdownEl.textContent = formatTime(remainingTime);
-
-    timer = setInterval(() => {
-        remainingTime--;
+    currentTimer.target = target;
+    currentTimer.isRunning = true;
+    
+    if (currentTimerId === "main") {
+        enableWakeLock();
+        clearInterval(timer);
+        document.body.style.background = "#111";
+        titleEl.textContent = `${timers.main.name} - Time until ${target.toLocaleTimeString()}`;
+        const now = new Date();
+        remainingTime = Math.floor((target - now) / 1000);
         countdownEl.textContent = formatTime(remainingTime);
 
-        if (remainingTime <= 0) {
-            clearInterval(timer);
-            countdownEl.textContent = "TIME UP!";
-            alarmSound.play();
-            document.body.style.background = "#009";
-            titleEl.textContent = "Countdown Timer";
+        timer = setInterval(() => {
+            remainingTime--;
+            countdownEl.textContent = formatTime(remainingTime);
+            currentTimer.remaining = remainingTime;
+
+            if (remainingTime <= 0) {
+                clearInterval(timer);
+                countdownEl.textContent = "TIME UP!";
+                alarmSound.play();
+                document.body.style.background = "#009";
+                titleEl.textContent = "Countdown Timer";
+                currentTimer.isRunning = false;
+            }
+        }, 1000);
+    } else {
+        // Additional timer
+        const now = new Date();
+        currentTimer.remaining = Math.floor((target - now) / 1000);
+        
+        if (currentTimer.timer) {
+            clearInterval(currentTimer.timer);
         }
-    }, 1000);
+        
+        currentTimer.timer = setInterval(() => {
+            currentTimer.remaining--;
+            updateAdditionalTimers();
+
+            if (currentTimer.remaining <= 0) {
+                clearInterval(currentTimer.timer);
+                currentTimer.isRunning = false;
+                updateAdditionalTimers();
+                alarmSound.play();
+            }
+        }, 1000);
+        
+        updateAdditionalTimers();
+    }
 }
 
 function stopCountdown() {
-    releaseWakeLock();
-    clearInterval(timer);
-    countdownEl.textContent = "00:00";
-    titleEl.textContent = "Countdown Timer";
-    document.body.style.background = "#111";
+    const currentTimer = getCurrentTimer();
+    if (!currentTimer) return;
+
+    if (currentTimerId === "main") {
+        releaseWakeLock();
+        clearInterval(timer);
+        countdownEl.textContent = "00:00";
+        titleEl.textContent = "Countdown Timer";
+        document.body.style.background = "#111";
+    } else {
+        if (currentTimer.timer) {
+            clearInterval(currentTimer.timer);
+        }
+        currentTimer.isRunning = false;
+        updateAdditionalTimers();
+    }
+    
+    currentTimer.target = null;
+    currentTimer.remaining = 0;
 }
 
 // ===== Event Listeners Setup =====
@@ -184,6 +402,18 @@ function setupEventListeners() {
     // Add event listeners for input changes to update preview
     hourInput.addEventListener("input", updateCountdownPreview);
     minuteInput.addEventListener("input", updateCountdownPreview);
+    
+    // Timer selection and management
+    timerSelect.addEventListener("change", (e) => {
+        setCurrentTimer(e.target.value);
+    });
+    
+    addTimerBtn.addEventListener("click", addNewTimer);
+    renameTimerBtn.addEventListener("click", renameCurrentTimer);
+    
+    // Scroll detection
+    window.addEventListener('scroll', handleScroll);
+    document.addEventListener('scroll', handleScroll);
 }
 
 // ===== Shortcut Buttons Setup =====
@@ -272,8 +502,10 @@ function initialize() {
     setVH();
     updateCurrentTime();
     setInterval(updateCurrentTime, 1000);
+    setInterval(updateAdditionalTimers, 1000); // Update additional timers every second
     setupEventListeners();
     setupShortcutButtons();
+    updateTimerSelect();
     updateCountdownPreview(); // Initialize the preview
 
     // Change fullscreen button to refresh if in standalone mode
@@ -305,6 +537,73 @@ function getTargetTime(h, m) {
     target.setMinutes(m);
     target.setSeconds(0);
     return target;
+}
+
+// ===== Drag and Drop Functions =====
+let draggedElement = null;
+
+function handleDragStart(e) {
+    draggedElement = this;
+    this.style.opacity = '0.4';
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/html', this.outerHTML);
+}
+
+function handleDragOver(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+}
+
+function handleDragEnter(e) {
+    this.classList.add('drag-over');
+}
+
+function handleDragLeave(e) {
+    this.classList.remove('drag-over');
+}
+
+function handleDrop(e) {
+    e.preventDefault();
+    this.classList.remove('drag-over');
+    
+    if (draggedElement !== this) {
+        const draggedTimerId = draggedElement.getAttribute('data-timer-id');
+        const droppedTimerId = this.getAttribute('data-timer-id');
+        
+        if (draggedTimerId && droppedTimerId) {
+            // Get the current order of running timers (excluding main)
+            const runningTimerOrder = timerOrder.filter(id => id !== "main" && timers[id] && timers[id].isRunning);
+            
+            // Find indices in the running timer order
+            const draggedIndex = runningTimerOrder.indexOf(draggedTimerId);
+            const droppedIndex = runningTimerOrder.indexOf(droppedTimerId);
+            
+            if (draggedIndex !== -1 && droppedIndex !== -1) {
+                // Remove the dragged timer from its current position
+                runningTimerOrder.splice(draggedIndex, 1);
+                
+                // Insert it at the new position
+                runningTimerOrder.splice(droppedIndex, 0, draggedTimerId);
+                
+                // Update the main timerOrder array
+                // First, remove all non-main timers from timerOrder
+                timerOrder = timerOrder.filter(id => id === "main");
+                
+                // Then add back the running timers in their new order
+                runningTimerOrder.forEach(id => {
+                    if (timers[id]) {
+                        timerOrder.push(id);
+                    }
+                });
+                
+                // Update the display
+                updateAdditionalTimers();
+            }
+        }
+    }
+    
+    draggedElement.style.opacity = '1';
+    draggedElement = null;
 }
 
 function isStandaloneMode() {

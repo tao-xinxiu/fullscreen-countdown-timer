@@ -10,6 +10,7 @@
     <link rel="icon" href="clock-icon.png" type="image/png">
     <link rel="stylesheet" href="style.css">
     <link rel="manifest" href="manifest.json">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
     <section class="timer-section">
@@ -24,10 +25,21 @@
                 <div id="dateLine"></div>
             </div>
         </div>
+        <div class="bottom-left">
+            <div id="additionalTimers" class="additional-timers"></div>
+        </div>
     </section>
 
     <section class="setup-section">
         <div class="setup-container">
+            <div class="timer-select-row">
+                <label class="timer-select-label">Timer:</label>
+                <select id="timerSelect" class="timer-select">
+                    <option value="main">Main Timer</option>
+                </select>
+                <button id="addTimerBtn" class="add-timer-btn">➕ Add Timer</button>
+                <button id="renameTimerBtn" class="rename-timer-btn">✏️ Rename</button>
+            </div>
             <div class="quick-buttons">
                 <label class="quick-label">Quick Set</label>
                 <div id="quickBtnContainer"></div>
