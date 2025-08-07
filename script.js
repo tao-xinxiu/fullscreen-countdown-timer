@@ -163,6 +163,16 @@ function renameCurrentTimer() {
         currentTimer.name = newName.trim();
         updateTimerSelect();
         updateAdditionalTimers();
+        updateTimerTitle();
+    }
+}
+
+function updateTimerTitle() {
+    const currentTimer = getCurrentTimer();
+    if (currentTimer && currentTimer.isRunning && currentTimer.target) {
+        if (currentTimerId === "main") {
+            titleEl.textContent = `${currentTimer.name} - Time until ${currentTimer.target.toLocaleTimeString()}`;
+        }
     }
 }
 
@@ -231,6 +241,11 @@ function updateAdditionalTimers() {
             timerEl.addEventListener('drop', handleDrop);
             timerEl.addEventListener('dragenter', handleDragEnter);
             timerEl.addEventListener('dragleave', handleDragLeave);
+            
+            // Add touch events for iPad support
+            timerEl.addEventListener('touchstart', handleTouchStart);
+            timerEl.addEventListener('touchmove', handleTouchMove);
+            timerEl.addEventListener('touchend', handleTouchEnd);
             
             additionalTimers.appendChild(timerEl);
         }
@@ -604,6 +619,88 @@ function handleDrop(e) {
     
     draggedElement.style.opacity = '1';
     draggedElement = null;
+}
+
+// ===== Touch Events for iPad Support =====
+let touchStartY = 0;
+let touchStartElement = null;
+let touchCurrentElement = null;
+
+function handleTouchStart(e) {
+    touchStartY = e.touches[0].clientY;
+    touchStartElement = this;
+    touchCurrentElement = this;
+    
+    // Prevent default to avoid scrolling
+    e.preventDefault();
+    
+    // Add visual feedback
+    this.style.opacity = '0.4';
+    this.style.transform = 'scale(1.05)';
+}
+
+function handleTouchMove(e) {
+    if (!touchStartElement) return;
+    
+    e.preventDefault();
+    
+    const touchY = e.touches[0].clientY;
+    const deltaY = touchY - touchStartY;
+    
+    // Find the element under the current touch position
+    const elements = Array.from(additionalTimers.children);
+    const currentIndex = elements.indexOf(touchCurrentElement);
+    
+    // Determine if we should move up or down
+    if (Math.abs(deltaY) > 30) { // Threshold to avoid accidental moves
+        let newIndex = currentIndex;
+        
+        if (deltaY > 0 && currentIndex < elements.length - 1) {
+            // Moving down
+            newIndex = currentIndex + 1;
+        } else if (deltaY < 0 && currentIndex > 0) {
+            // Moving up
+            newIndex = currentIndex - 1;
+        }
+        
+        if (newIndex !== currentIndex) {
+            const newElement = elements[newIndex];
+            if (newElement && newElement !== touchCurrentElement) {
+                // Swap positions
+                if (newIndex > currentIndex) {
+                    additionalTimers.insertBefore(newElement, touchCurrentElement);
+                } else {
+                    additionalTimers.insertBefore(touchCurrentElement, newElement);
+                }
+                touchCurrentElement = newElement;
+            }
+        }
+    }
+}
+
+function handleTouchEnd(e) {
+    if (!touchStartElement) return;
+    
+    e.preventDefault();
+    
+    // Reset visual feedback
+    touchStartElement.style.opacity = '1';
+    touchStartElement.style.transform = 'scale(1)';
+    
+    // Update the timer order based on the new visual order
+    const elements = Array.from(additionalTimers.children);
+    const runningTimerOrder = elements.map(el => el.getAttribute('data-timer-id')).filter(id => id);
+    
+    // Update the main timerOrder array
+    timerOrder = timerOrder.filter(id => id === "main");
+    runningTimerOrder.forEach(id => {
+        if (timers[id]) {
+            timerOrder.push(id);
+        }
+    });
+    
+    touchStartElement = null;
+    touchCurrentElement = null;
 }
 
 function isStandaloneMode() {
