@@ -388,7 +388,7 @@ function setupEventListeners() {
     });
     document.addEventListener("fullscreenchange", () => {
         if (!isStandaloneMode()) {
-            fullscreenBtn.textContent = document.fullscreenElement ? "✕" : "⛶";
+            fullscreenBtn.innerHTML = document.fullscreenElement ? '<i class="fas fa-times"></i>' : '<i class="fas fa-expand"></i>';
         }
     });
     window.addEventListener('resize', setVH);
@@ -510,7 +510,7 @@ function initialize() {
 
     // Change fullscreen button to refresh if in standalone mode
     if (isStandaloneMode()) {
-        fullscreenBtn.textContent = "⟳"; // or use a refresh icon of your choice
+        fullscreenBtn.innerHTML = '<i class="fas fa-redo"></i>';
     }
 }
 
