@@ -36,7 +36,7 @@ let remainingTime = 0;
 let wakeLock = null;
 let timers = {
     main: {
-        name: "Main Timer",
+        name: "Focus",
         target: null,
         remaining: 0,
         timer: null,
@@ -224,7 +224,7 @@ function updateAdditionalTimers() {
             timerEl.innerHTML = `
                 <span class="timer-name">${timers[timerId].name}</span>
                 <span class="timer-end-time">${endTime}</span>
-                <span class="timer-remaining">${formatTime(timers[timerId].remaining)}</span>
+                <span class="timer-remaining"> | ${formatTime(timers[timerId].remaining)}</span>
                 <button class="delete-timer-btn" data-timer-id="${timerId}" title="Delete timer"><i class="fas fa-trash"></i></button>
             `;
             
@@ -624,19 +624,26 @@ function handleDrop(e) {
 // ===== Touch Events for iPad Support =====
 let touchStartY = 0;
 let touchStartElement = null;
-let touchCurrentElement = null;
+let touchStartIndex = -1;
+let isDragging = false;
+let dragOffset = 0;
 
 function handleTouchStart(e) {
     touchStartY = e.touches[0].clientY;
     touchStartElement = this;
-    touchCurrentElement = this;
+    touchStartIndex = Array.from(additionalTimers.children).indexOf(this);
+    isDragging = false;
+    dragOffset = 0;
     
     // Prevent default to avoid scrolling
     e.preventDefault();
     
     // Add visual feedback
-    this.style.opacity = '0.4';
-    this.style.transform = 'scale(1.05)';
+    this.style.opacity = '0.8';
+    this.style.transform = 'scale(1.02)';
+    this.style.zIndex = '1000';
+    this.style.position = 'relative';
+    this.style.transition = 'none';
 }
 
 function handleTouchMove(e) {
@@ -647,32 +654,41 @@ function handleTouchMove(e) {
     const touchY = e.touches[0].clientY;
     const deltaY = touchY - touchStartY;
     
-    // Find the element under the current touch position
-    const elements = Array.from(additionalTimers.children);
-    const currentIndex = elements.indexOf(touchCurrentElement);
-    
-    // Determine if we should move up or down
-    if (Math.abs(deltaY) > 30) { // Threshold to avoid accidental moves
-        let newIndex = currentIndex;
+    // Start dragging after a small threshold
+    if (Math.abs(deltaY) > 10) {
+        isDragging = true;
+        dragOffset = deltaY;
         
-        if (deltaY > 0 && currentIndex < elements.length - 1) {
-            // Moving down
-            newIndex = currentIndex + 1;
-        } else if (deltaY < 0 && currentIndex > 0) {
-            // Moving up
-            newIndex = currentIndex - 1;
+        // Move the dragged element
+        touchStartElement.style.transform = `translateY(${deltaY}px) scale(1.02)`;
+        
+        // Find the target position
+        const elements = Array.from(additionalTimers.children);
+        const elementHeight = touchStartElement.offsetHeight;
+        const currentIndex = elements.indexOf(touchStartElement);
+        
+        // Calculate which position the element should be at
+        let targetIndex = currentIndex;
+        const threshold = elementHeight / 2;
+        
+        if (deltaY > threshold && currentIndex < elements.length - 1) {
+            targetIndex = currentIndex + 1;
+        } else if (deltaY < -threshold && currentIndex > 0) {
+            targetIndex = currentIndex - 1;
         }
         
-        if (newIndex !== currentIndex) {
-            const newElement = elements[newIndex];
-            if (newElement && newElement !== touchCurrentElement) {
-                // Swap positions
-                if (newIndex > currentIndex) {
-                    additionalTimers.insertBefore(newElement, touchCurrentElement);
+        // Reorder if needed
+        if (targetIndex !== currentIndex) {
+            const targetElement = elements[targetIndex];
+            if (targetElement && targetElement !== touchStartElement) {
+                if (targetIndex > currentIndex) {
+                    additionalTimers.insertBefore(touchStartElement, targetElement.nextSibling);
                 } else {
-                    additionalTimers.insertBefore(touchCurrentElement, newElement);
+                    additionalTimers.insertBefore(touchStartElement, targetElement);
                 }
-                touchCurrentElement = newElement;
+                
+                // Reset the transform since the element is now in a new position
+                touchStartElement.style.transform = `translateY(${deltaY}px) scale(1.02)`;
             }
         }
     }
@@ -686,6 +702,9 @@ function handleTouchEnd(e) {
     // Reset visual feedback
     touchStartElement.style.opacity = '1';
     touchStartElement.style.transform = 'scale(1)';
+    touchStartElement.style.zIndex = '';
+    touchStartElement.style.position = '';
+    touchStartElement.style.transition = '';
     
     // Update the timer order based on the new visual order
     const elements = Array.from(additionalTimers.children);
@@ -700,7 +719,9 @@ function handleTouchEnd(e) {
     });
     
     touchStartElement = null;
-    touchCurrentElement = null;
+    touchStartIndex = -1;
+    isDragging = false;
+    dragOffset = 0;
 }
 
 function isStandaloneMode() {
