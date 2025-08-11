@@ -12,7 +12,7 @@ const fullscreenBtn = document.getElementById("fullscreenBtn");
 const quickBtnContainer = document.getElementById("quickBtnContainer");
 const quickAddContainer = document.getElementById("quickAddContainer");
 const quickTweakContainer = document.getElementById("quickTweakContainer");
-const nowBtn = document.getElementById("nowBtn"); // Fixed selector
+const nowBtn = document.getElementById("nowBtn");
 const tweakRow1 = document.getElementById("tweakRow1");
 const tweakRow2 = document.getElementById("tweakRow2");
 const countdownPreview = document.getElementById("countdownPreview");
@@ -26,42 +26,147 @@ const bottomLeft = document.querySelector(".bottom-left");
 // ===== Constants =====
 const weekdays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const increments = [2, 5, 10, 20, 30, 60, 120];
-// const tweaks = [-1, -2, -5, -10, -30, 1, 2, 5, 10, 30];
 const tweakRow1Mins = [-5, -2, -1, 1, 2, 5];
 const tweakRow2Mins = [-60, -30, -10, 10, 30, 60];
 
 // ===== State =====
-let timer;
-let remainingTime = 0;
+let mainTimer = null;
 let wakeLock = null;
 let timers = {
     main: {
         name: "Focus",
         target: null,
         remaining: 0,
-        timer: null,
         isRunning: false
     }
 };
 let currentTimerId = "main";
-let timerOrder = ["main"]; // Track the order of timers
+let timerOrder = ["main"];
+
+// ===== Page Visibility API Support =====
+let isPageVisible = true;
+
+// Check if Page Visibility API is supported
+function isPageVisibilitySupported() {
+    return typeof document.hidden !== "undefined" || 
+           typeof document.msHidden !== "undefined" || 
+           typeof document.webkitHidden !== "undefined";
+}
+
+// Get current page visibility state
+function getPageVisibilityState() {
+    if (document.hidden !== undefined) return document.hidden;
+    if (document.msHidden !== undefined) return document.msHidden;
+    if (document.webkitHidden !== undefined) return document.webkitHidden;
+    return false;
+}
+
+// Handle page visibility changes
+function handleVisibilityChange() {
+    const wasVisible = isPageVisible;
+    isPageVisible = !getPageVisibilityState();
+    
+    // If page becomes visible and we have running timers, resync them
+    if (isPageVisible && !wasVisible) {
+        console.log("Page became visible, resyncing timers...");
+        resyncAllTimers();
+    }
+}
+
+// ===== Core Timer Functions =====
+
+// Main timer function that runs every second
+function updateAllTimers() {
+    const now = new Date();
+    
+    // Update current time display
+    updateCurrentTimeDisplay(now);
+    
+    // Update all running timers
+    Object.keys(timers).forEach(timerId => {
+        const timer = timers[timerId];
+        if (timer.isRunning && timer.target) {
+            updateTimer(timerId, now);
+        }
+    });
+    
+    // Update additional timers display
+    updateAdditionalTimersDisplay();
+}
+
+// Update a specific timer
+function updateTimer(timerId, now) {
+    const timer = timers[timerId];
+    if (!timer || !timer.target || !timer.isRunning) return;
+    
+    // Calculate remaining time
+    const newRemaining = Math.floor((timer.target - now) / 1000);
+    
+    if (newRemaining <= 0) {
+        // Timer completed
+        completeTimer(timerId);
+    } else {
+        // Update remaining time
+        timer.remaining = newRemaining;
+        
+        // Update main timer display if this is the main timer
+        if (timerId === "main") {
+            countdownEl.textContent = formatTime(newRemaining);
+        }
+    }
+}
+
+// Complete a timer
+function completeTimer(timerId) {
+    const timer = timers[timerId];
+    if (!timer) return;
+    
+    console.log(`Timer ${timerId} completed: ${timer.name}`);
+    
+    // Stop the timer
+    timer.isRunning = false;
+    timer.remaining = 0;
+    
+    if (timerId === "main") {
+        // Main timer completed
+        countdownEl.textContent = "TIME UP!";
+        document.body.style.background = "#009";
+        titleEl.textContent = "Countdown Timer";
+        releaseWakeLock();
+    }
+    
+    // Play notification sound for all completed timers
+    alarmSound.play();
+}
+
+// Resync all running timers based on current time
+function resyncAllTimers() {
+    const now = new Date();
+    
+    Object.keys(timers).forEach(timerId => {
+        const timer = timers[timerId];
+        if (timer.isRunning && timer.target) {
+            updateTimer(timerId, now);
+        }
+    });
+}
 
 // ===== Utility Functions =====
+
 function formatTime(seconds) {
     const h = Math.floor(seconds / 3600);
     const m = Math.floor((seconds % 3600) / 60);
     const s = seconds % 60;
-    // Always use hh:mm:ss format for consistent alignment
     return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
-function updateCurrentTime() {
-    const now = new Date();
+function updateCurrentTimeDisplay(now) {
     const hh = String(now.getHours()).padStart(2, '0');
     const mm = String(now.getMinutes()).padStart(2, '0');
     const ss = String(now.getSeconds()).padStart(2, '0');
     const dateStr = now.toISOString().split('T')[0];
     const weekday = weekdays[now.getDay()];
+    
     timeLine.textContent = `${hh}:${mm}:${ss}`;
     dateLine.textContent = `${dateStr} ${weekday}`;
 }
@@ -99,6 +204,8 @@ function updateCountdownPreview() {
     }
 }
 
+// ===== Timer Management Functions =====
+
 function addNewTimer() {
     const timerName = prompt("Enter timer name:");
     if (timerName && timerName.trim()) {
@@ -107,16 +214,14 @@ function addNewTimer() {
             name: timerName.trim(),
             target: null,
             remaining: 0,
-            timer: null,
             isRunning: false
         };
-        // Add to timer order
+        
         timerOrder.push(timerId);
-        // Auto-switch to the newly added timer
         currentTimerId = timerId;
         updateTimerSelect();
         setCurrentTimer(timerId);
-        updateAdditionalTimers();
+        updateAdditionalTimersDisplay();
     }
 }
 
@@ -130,28 +235,23 @@ function deleteTimer(timerId) {
     if (!timer) return;
     
     if (timer.isRunning) {
-        if (timer.timer) {
-            clearInterval(timer.timer);
-        }
         timer.isRunning = false;
     }
     
     delete timers[timerId];
     
-    // Remove from timer order
     const orderIndex = timerOrder.indexOf(timerId);
     if (orderIndex > -1) {
         timerOrder.splice(orderIndex, 1);
     }
     
-    // If the deleted timer was the current timer, switch to main
     if (currentTimerId === timerId) {
         currentTimerId = "main";
         setCurrentTimer("main");
     }
     
     updateTimerSelect();
-    updateAdditionalTimers();
+    updateAdditionalTimersDisplay();
 }
 
 function renameCurrentTimer() {
@@ -162,7 +262,7 @@ function renameCurrentTimer() {
     if (newName && newName.trim()) {
         currentTimer.name = newName.trim();
         updateTimerSelect();
-        updateAdditionalTimers();
+        updateAdditionalTimersDisplay();
         updateTimerTitle();
     }
 }
@@ -172,21 +272,6 @@ function updateTimerTitle() {
     if (currentTimer && currentTimer.isRunning && currentTimer.target) {
         if (currentTimerId === "main") {
             titleEl.textContent = `${currentTimer.name} - Time until ${currentTimer.target.toLocaleTimeString()}`;
-        }
-    }
-}
-
-function handleScroll() {
-    const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-    const isScrolled = scrollTop > 50;
-    
-    if (bottomRight && bottomLeft) {
-        if (isScrolled) {
-            bottomRight.classList.add("bottom-hidden");
-            bottomLeft.classList.add("bottom-hidden");
-        } else {
-            bottomRight.classList.remove("bottom-hidden");
-            bottomLeft.classList.remove("bottom-hidden");
         }
     }
 }
@@ -204,48 +289,46 @@ function updateTimerSelect() {
     });
 }
 
-function updateAdditionalTimers() {
+function updateAdditionalTimersDisplay() {
     if (!additionalTimers) return;
     
     additionalTimers.innerHTML = "";
     
-    // Use timerOrder to maintain the order, but only show running timers
     timerOrder.forEach(timerId => {
-        if (timerId !== "main" && timers[timerId] && timers[timerId].isRunning) {
+        if (timerId !== "main" && timers[timerId]) {
+            const timer = timers[timerId];
             const timerEl = document.createElement("div");
             timerEl.className = "additional-timer";
             timerEl.setAttribute("data-timer-id", timerId);
             timerEl.draggable = true;
             
-            // Format end time as hh:mm (24h format)
-            const endTime = timers[timerId].target ? 
-                `${String(timers[timerId].target.getHours()).padStart(2, '0')}:${String(timers[timerId].target.getMinutes()).padStart(2, '0')}` : "";
+            const endTime = timer.target ? 
+                `${String(timer.target.getHours()).padStart(2, '0')}:${String(timer.target.getMinutes()).padStart(2, '0')}` : "";
+            
+            const displayText = ` | ${formatTime(timer.remaining)}`;
             
             timerEl.innerHTML = `
-                <span class="timer-name">${timers[timerId].name}</span>
+                <span class="timer-name">${timer.name}</span>
                 <span class="timer-end-time">${endTime}</span>
-                <span class="timer-remaining"> | ${formatTime(timers[timerId].remaining)}</span>
+                <span class="timer-remaining">${displayText}</span>
                 <button class="delete-timer-btn" data-timer-id="${timerId}" title="Delete timer"><i class="fas fa-trash"></i></button>
             `;
             
-            // Add delete button event listener
             const deleteBtn = timerEl.querySelector('.delete-timer-btn');
-            deleteBtn.addEventListener('click', (e) => {
+            deleteBtn.addEventListener("click", (e) => {
                 e.stopPropagation();
                 deleteTimer(timerId);
             });
             
-            // Add drag and drop event listeners
-            timerEl.addEventListener('dragstart', handleDragStart);
-            timerEl.addEventListener('dragover', handleDragOver);
-            timerEl.addEventListener('drop', handleDrop);
-            timerEl.addEventListener('dragenter', handleDragEnter);
-            timerEl.addEventListener('dragleave', handleDragLeave);
+            timerEl.addEventListener("dragstart", handleDragStart);
+            timerEl.addEventListener("dragover", handleDragOver);
+            timerEl.addEventListener("drop", handleDrop);
+            timerEl.addEventListener("dragenter", handleDragEnter);
+            timerEl.addEventListener("dragleave", handleDragLeave);
             
-            // Add touch events for iPad support
-            timerEl.addEventListener('touchstart', handleTouchStart);
-            timerEl.addEventListener('touchmove', handleTouchMove);
-            timerEl.addEventListener('touchend', handleTouchEnd);
+            timerEl.addEventListener("touchstart", handleTouchStart);
+            timerEl.addEventListener("touchmove", handleTouchMove);
+            timerEl.addEventListener("touchend", handleTouchEnd);
             
             additionalTimers.appendChild(timerEl);
         }
@@ -269,6 +352,51 @@ function setCurrentTimer(timerId) {
         updateCountdownPreview();
     }
 }
+
+// ===== Timer Control Functions =====
+
+function startCountdown() {
+    const currentTimer = getCurrentTimer();
+    if (!currentTimer) return;
+
+    const target = targetTime();
+    if (!target) return;
+
+    currentTimer.target = target;
+    currentTimer.isRunning = true;
+    
+    if (currentTimerId === "main") {
+        enableWakeLock();
+        document.body.style.background = "#111";
+        titleEl.textContent = `${timers.main.name} - Time until ${target.toLocaleTimeString()}`;
+        
+        const now = new Date();
+        timers.main.remaining = Math.floor((target - now) / 1000);
+        countdownEl.textContent = formatTime(timers.main.remaining);
+    }
+    
+    updateAdditionalTimersDisplay();
+}
+
+function stopCountdown() {
+    const currentTimer = getCurrentTimer();
+    if (!currentTimer) return;
+
+    if (currentTimerId === "main") {
+        releaseWakeLock();
+        countdownEl.textContent = "00:00";
+        titleEl.textContent = "Countdown Timer";
+        document.body.style.background = "#111";
+    }
+    
+    currentTimer.isRunning = false;
+    currentTimer.target = null;
+    currentTimer.remaining = 0;
+    
+    updateAdditionalTimersDisplay();
+}
+
+// ===== Helper Functions =====
 
 function setVH() {
     let vh = window.innerHeight * 0.01;
@@ -305,162 +433,71 @@ function releaseWakeLock() {
     }
 }
 
-// ===== Countdown Logic =====
-function startCountdown() {
-    const currentTimer = getCurrentTimer();
-    if (!currentTimer) return;
-
-    const target = targetTime();
-    if (!target) return;
-
-    currentTimer.target = target;
-    currentTimer.isRunning = true;
-    
-    if (currentTimerId === "main") {
-        enableWakeLock();
-        clearInterval(timer);
-        document.body.style.background = "#111";
-        titleEl.textContent = `${timers.main.name} - Time until ${target.toLocaleTimeString()}`;
-        const now = new Date();
-        remainingTime = Math.floor((target - now) / 1000);
-        countdownEl.textContent = formatTime(remainingTime);
-
-        timer = setInterval(() => {
-            remainingTime--;
-            countdownEl.textContent = formatTime(remainingTime);
-            currentTimer.remaining = remainingTime;
-
-            if (remainingTime <= 0) {
-                clearInterval(timer);
-                countdownEl.textContent = "TIME UP!";
-                alarmSound.play();
-                document.body.style.background = "#009";
-                titleEl.textContent = "Countdown Timer";
-                currentTimer.isRunning = false;
-            }
-        }, 1000);
-    } else {
-        // Additional timer
-        const now = new Date();
-        currentTimer.remaining = Math.floor((target - now) / 1000);
-        
-        if (currentTimer.timer) {
-            clearInterval(currentTimer.timer);
-        }
-        
-        currentTimer.timer = setInterval(() => {
-            currentTimer.remaining--;
-            updateAdditionalTimers();
-
-            if (currentTimer.remaining <= 0) {
-                clearInterval(currentTimer.timer);
-                currentTimer.isRunning = false;
-                updateAdditionalTimers();
-                alarmSound.play();
-            }
-        }, 1000);
-        
-        updateAdditionalTimers();
-    }
+function isValidHourMinute(h, m) {
+    return (
+        Number.isInteger(h) &&
+        Number.isInteger(m) &&
+        h >= 0 && h <= 23 &&
+        m >= 0 && m <= 59
+    );
 }
 
-function stopCountdown() {
-    const currentTimer = getCurrentTimer();
-    if (!currentTimer) return;
-
-    if (currentTimerId === "main") {
-        releaseWakeLock();
-        clearInterval(timer);
-        countdownEl.textContent = "00:00";
-        titleEl.textContent = "Countdown Timer";
-        document.body.style.background = "#111";
-    } else {
-        if (currentTimer.timer) {
-            clearInterval(currentTimer.timer);
-        }
-        currentTimer.isRunning = false;
-        updateAdditionalTimers();
-    }
-    
-    currentTimer.target = null;
-    currentTimer.remaining = 0;
+function isValidTarget(h, m) {
+    return getTargetTime(h, m) > new Date();
 }
 
-// ===== Event Listeners Setup =====
-function setupEventListeners() {
-    startBtn.addEventListener("click", startCountdown);
-    stopBtn.addEventListener("click", stopCountdown);
-    fullscreenBtn.addEventListener("click", () => {
-        if (isStandaloneMode()) {
-            location.reload(); // Refresh the page
-            return;
-        }
-        if (!document.fullscreenElement) {
-            document.documentElement.requestFullscreen();
-        } else {
-            document.exitFullscreen();
-        }
-    });
-    document.addEventListener("fullscreenchange", () => {
-        if (!isStandaloneMode()) {
-            fullscreenBtn.innerHTML = document.fullscreenElement ? '<i class="fas fa-times"></i>' : '<i class="fas fa-expand"></i>';
-        }
-    });
-    window.addEventListener('resize', setVH);
-    nowBtn.addEventListener("click", () => {
-        const target = new Date();
-        hourInput.value = target.getHours();
-        minuteInput.value = String(target.getMinutes()).padStart(2, '0');
-        updateCountdownPreview();
-    });
-    
-    // Add event listeners for input changes to update preview
-    hourInput.addEventListener("input", updateCountdownPreview);
-    minuteInput.addEventListener("input", updateCountdownPreview);
-    
-    // Timer selection and management
-    timerSelect.addEventListener("change", (e) => {
-        setCurrentTimer(e.target.value);
-    });
-    
-    addTimerBtn.addEventListener("click", addNewTimer);
-    renameTimerBtn.addEventListener("click", renameCurrentTimer);
-    
-    // Scroll detection
-    window.addEventListener('scroll', handleScroll);
-    document.addEventListener('scroll', handleScroll);
+function getTargetTime(h, m) {
+    const target = new Date();
+    target.setHours(h);
+    target.setMinutes(m);
+    target.setSeconds(0);
+    return target;
 }
 
-// ===== Shortcut Buttons Setup =====
+// ===== Quick Button Functions =====
+
 function setupShortcutButtons() {
-    // Hour and half-hour quick set buttons
-    const quickBtnContainer = document.getElementById("quickBtnContainer");
-    quickBtnContainer.innerHTML = "";
     const morning = [[9, 0], [9, 30], [10, 0], [10, 30], [11, 0], [11, 30], [12, 0], [12, 30]];
     const afternoon = [[13, 0], [13, 30], [14, 0], [14, 30], [15, 0], [15, 30], [16, 0], [16, 30], [17, 0], [17, 30], [18, 0]];
     const night = [[19, 0], [20, 0], [21, 0], [22, 0]];
 
-    // Helper to create a row
     function createHourRow(arr) {
         const row = document.createElement("div");
         row.className = "quick-hour-row";
+        const now = new Date();
+        const currentHour = now.getHours();
+        const currentMinute = now.getMinutes();
+        
         arr.forEach(([h, min]) => {
             const btn = document.createElement("button");
             btn.textContent = `${String(h).padStart(2, '0')}:${min === 0 ? '00' : '30'}`;
-            btn.addEventListener("click", () => {
-                hourInput.value = h;
-                minuteInput.value = String(min).padStart(2, '0');
-                updateCountdownPreview();
-                startCountdown();
-            });
+            
+            const isPastTime = (h < currentHour) || (h === currentHour && min <= currentMinute);
+            
+            if (isPastTime) {
+                btn.disabled = true;
+                btn.style.opacity = "0.4";
+                btn.style.cursor = "not-allowed";
+                btn.title = "Time has passed";
+            } else {
+                btn.addEventListener("click", () => {
+                    hourInput.value = h;
+                    minuteInput.value = String(min).padStart(2, '0');
+                    updateCountdownPreview();
+                    startCountdown();
+                });
+            }
+            
             row.appendChild(btn);
         });
         return row;
     }
+    
+    quickBtnContainer.innerHTML = "";
     quickBtnContainer.appendChild(createHourRow(morning));
     quickBtnContainer.appendChild(createHourRow(afternoon));
     quickBtnContainer.appendChild(createHourRow(night));
-    // Quick add increments (min/h) based on now
+    
     increments.forEach(min => {
         const btn = document.createElement("button");
         btn.textContent = min < 60 ? `${min}min` : `${min / 60}h`;
@@ -474,10 +511,8 @@ function setupShortcutButtons() {
         });
         quickAddContainer.appendChild(btn);
     });
-    // Quick tweak buttons (-/+min) based on input time
-    // Row 1
+    
     [...tweakRow1Mins].forEach(min => { createTweakButton(min, tweakRow1) });
-    // Row 2
     [...tweakRow2Mins].forEach(min => { createTweakButton(min, tweakRow2) });
 }
 
@@ -512,46 +547,98 @@ function adjustInputTimeBy(min) {
     }
 }
 
-// ===== Initialization =====
-function initialize() {
-    setVH();
-    updateCurrentTime();
-    setInterval(updateCurrentTime, 1000);
-    setInterval(updateAdditionalTimers, 1000); // Update additional timers every second
-    setupEventListeners();
-    setupShortcutButtons();
-    updateTimerSelect();
-    updateCountdownPreview(); // Initialize the preview
+function updateQuickButtons() {
+    const now = new Date();
+    const currentHour = now.getHours();
+    const currentMinute = now.getMinutes();
+    
+    const timeButtons = quickBtnContainer.querySelectorAll('button');
+    
+    timeButtons.forEach(btn => {
+        const timeText = btn.textContent;
+        const [hourStr, minuteStr] = timeText.split(':');
+        const h = parseInt(hourStr, 10);
+        const min = parseInt(minuteStr, 10);
+        
+        if (!isNaN(h) && !isNaN(min)) {
+            const isPastTime = (h < currentHour) || (h === currentHour && min <= currentMinute);
+            
+            if (isPastTime) {
+                btn.disabled = true;
+                btn.style.opacity = "0.4";
+                btn.style.cursor = "not-allowed";
+                btn.title = "Time has passed";
+            } else {
+                btn.disabled = false;
+                btn.style.opacity = "1";
+                btn.style.cursor = "pointer";
+                btn.title = "";
+            }
+        }
+    });
+}
 
-    // Change fullscreen button to refresh if in standalone mode
-    if (isStandaloneMode()) {
-        fullscreenBtn.innerHTML = '<i class="fas fa-redo"></i>';
+// ===== Event Listeners =====
+
+function setupEventListeners() {
+    startBtn.addEventListener("click", startCountdown);
+    stopBtn.addEventListener("click", stopCountdown);
+    fullscreenBtn.addEventListener("click", () => {
+        if (isStandaloneMode()) {
+            location.reload();
+            return;
+        }
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen();
+        } else {
+            document.exitFullscreen();
+        }
+    });
+    
+    document.addEventListener("fullscreenchange", () => {
+        if (!isStandaloneMode()) {
+            fullscreenBtn.innerHTML = document.fullscreenElement ? '<i class="fas fa-times"></i>' : '<i class="fas fa-expand"></i>';
+        }
+    });
+    
+    window.addEventListener('resize', setVH);
+    
+    nowBtn.addEventListener("click", () => {
+        const target = new Date();
+        hourInput.value = target.getHours();
+        minuteInput.value = String(target.getMinutes()).padStart(2, '0');
+        updateCountdownPreview();
+    });
+    
+    hourInput.addEventListener("input", updateCountdownPreview);
+    minuteInput.addEventListener("input", updateCountdownPreview);
+    
+    timerSelect.addEventListener("change", (e) => {
+        setCurrentTimer(e.target.value);
+    });
+    
+    addTimerBtn.addEventListener("click", addNewTimer);
+    renameTimerBtn.addEventListener("click", renameCurrentTimer);
+    
+    window.addEventListener('scroll', handleScroll);
+    document.addEventListener('scroll', handleScroll);
+}
+
+// ===== Scroll and UI Functions =====
+
+function handleScroll() {
+    const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+    const isScrolled = scrollTop > 50;
+    
+    if (bottomRight && bottomLeft) {
+        if (isScrolled) {
+            bottomRight.classList.add("bottom-hidden");
+            bottomLeft.classList.add("bottom-hidden");
+        } else {
+            bottomRight.classList.remove("bottom-hidden");
+            bottomLeft.classList.remove("bottom-hidden");
+        }
     }
-}
-
-// ===== Start App =====
-initialize();
-
-function isValidHourMinute(h, m) {
-    return (
-        Number.isInteger(h) &&
-        Number.isInteger(m) &&
-        h >= 0 && h <= 23 &&
-        m >= 0 && m <= 59
-    );
-}
-
-function isValidTarget(h, m) {
-    // target time is after now
-    return getTargetTime(h, m) > new Date();
-}
-
-function getTargetTime(h, m) {
-    const target = new Date();
-    target.setHours(h);
-    target.setMinutes(m);
-    target.setSeconds(0);
-    return target;
 }
 
 // ===== Drag and Drop Functions =====
@@ -586,33 +673,23 @@ function handleDrop(e) {
         const droppedTimerId = this.getAttribute('data-timer-id');
         
         if (draggedTimerId && droppedTimerId) {
-            // Get the current order of running timers (excluding main)
             const runningTimerOrder = timerOrder.filter(id => id !== "main" && timers[id] && timers[id].isRunning);
             
-            // Find indices in the running timer order
             const draggedIndex = runningTimerOrder.indexOf(draggedTimerId);
             const droppedIndex = runningTimerOrder.indexOf(droppedTimerId);
             
             if (draggedIndex !== -1 && droppedIndex !== -1) {
-                // Remove the dragged timer from its current position
                 runningTimerOrder.splice(draggedIndex, 1);
-                
-                // Insert it at the new position
                 runningTimerOrder.splice(droppedIndex, 0, draggedTimerId);
                 
-                // Update the main timerOrder array
-                // First, remove all non-main timers from timerOrder
                 timerOrder = timerOrder.filter(id => id === "main");
-                
-                // Then add back the running timers in their new order
                 runningTimerOrder.forEach(id => {
                     if (timers[id]) {
                         timerOrder.push(id);
                     }
                 });
                 
-                // Update the display
-                updateAdditionalTimers();
+                updateAdditionalTimersDisplay();
             }
         }
     }
@@ -635,10 +712,8 @@ function handleTouchStart(e) {
     isDragging = false;
     dragOffset = 0;
     
-    // Prevent default to avoid scrolling
     e.preventDefault();
     
-    // Add visual feedback
     this.style.opacity = '0.8';
     this.style.transform = 'scale(1.02)';
     this.style.zIndex = '1000';
@@ -654,20 +729,16 @@ function handleTouchMove(e) {
     const touchY = e.touches[0].clientY;
     const deltaY = touchY - touchStartY;
     
-    // Start dragging after a small threshold
     if (Math.abs(deltaY) > 10) {
         isDragging = true;
         dragOffset = deltaY;
         
-        // Move the dragged element
         touchStartElement.style.transform = `translateY(${deltaY}px) scale(1.02)`;
         
-        // Find the target position
         const elements = Array.from(additionalTimers.children);
         const elementHeight = touchStartElement.offsetHeight;
         const currentIndex = elements.indexOf(touchStartElement);
         
-        // Calculate which position the element should be at
         let targetIndex = currentIndex;
         const threshold = elementHeight / 2;
         
@@ -677,7 +748,6 @@ function handleTouchMove(e) {
             targetIndex = currentIndex - 1;
         }
         
-        // Reorder if needed
         if (targetIndex !== currentIndex) {
             const targetElement = elements[targetIndex];
             if (targetElement && targetElement !== touchStartElement) {
@@ -687,7 +757,6 @@ function handleTouchMove(e) {
                     additionalTimers.insertBefore(touchStartElement, targetElement);
                 }
                 
-                // Reset the transform since the element is now in a new position
                 touchStartElement.style.transform = `translateY(${deltaY}px) scale(1.02)`;
             }
         }
@@ -699,18 +768,15 @@ function handleTouchEnd(e) {
     
     e.preventDefault();
     
-    // Reset visual feedback
     touchStartElement.style.opacity = '1';
     touchStartElement.style.transform = 'scale(1)';
     touchStartElement.style.zIndex = '';
     touchStartElement.style.position = '';
     touchStartElement.style.transition = '';
     
-    // Update the timer order based on the new visual order
     const elements = Array.from(additionalTimers.children);
     const runningTimerOrder = elements.map(el => el.getAttribute('data-timer-id')).filter(id => id);
     
-    // Update the main timerOrder array
     timerOrder = timerOrder.filter(id => id === "main");
     runningTimerOrder.forEach(id => {
         if (timers[id]) {
@@ -727,3 +793,65 @@ function handleTouchEnd(e) {
 function isStandaloneMode() {
     return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
 }
+
+// ===== Initialization =====
+
+function initialize() {
+    setVH();
+    updateCurrentTimeDisplay(new Date());
+    
+    // Start the main timer that updates everything every second
+    mainTimer = setInterval(updateAllTimers, 1000);
+    
+    // Update quick buttons every minute
+    setInterval(updateQuickButtons, 60000);
+    
+    // Periodic timer resync every 30 seconds
+    setInterval(() => {
+        if (isPageVisible) {
+            resyncAllTimers();
+        }
+    }, 30000);
+    
+    setupEventListeners();
+    setupShortcutButtons();
+    updateTimerSelect();
+    updateCountdownPreview();
+
+    if (isStandaloneMode()) {
+        fullscreenBtn.innerHTML = '<i class="fas fa-redo"></i>';
+    }
+
+    if (isPageVisibilitySupported()) {
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+    } else {
+        window.addEventListener('blur', () => {
+            isPageVisible = false;
+        });
+        window.addEventListener('focus', () => {
+            if (!isPageVisible) {
+                isPageVisible = true;
+                resyncAllTimers();
+            }
+        });
+    }
+    
+    document.addEventListener('touchstart', () => {
+        if (!isPageVisible) {
+            isPageVisible = true;
+            resyncAllTimers();
+        }
+    });
+    
+    if ('onpageshow' in window) {
+        window.addEventListener('pageshow', () => {
+            if (!isPageVisible) {
+                isPageVisible = true;
+                resyncAllTimers();
+            }
+        });
+    }
+}
+
+// ===== Start App =====
+initialize();
