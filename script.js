@@ -112,6 +112,7 @@ function updateTimer(timerId, now) {
         // Update main timer display if this is the main timer
         if (timerId === "main") {
             countdownEl.textContent = formatTime(newRemaining);
+            updateDocumentTitle();
         }
     }
 }
@@ -132,6 +133,7 @@ function completeTimer(timerId) {
         countdownEl.textContent = "TIME UP!";
         document.body.style.background = "#009";
         titleEl.textContent = "Countdown Timer";
+        updateDocumentTitle();
         releaseWakeLock();
     }
     
@@ -158,6 +160,21 @@ function formatTime(seconds) {
     const m = Math.floor((seconds % 3600) / 60);
     const s = seconds % 60;
     return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
+
+function formatTimeForTitle(seconds) {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+function updateDocumentTitle() {
+    const mainTimer = timers.main;
+    if (mainTimer && mainTimer.isRunning && mainTimer.remaining > 0) {
+        document.title = formatTimeForTitle(mainTimer.remaining);
+    } else {
+        document.title = "Countdown Timer";
+    }
 }
 
 function updateCurrentTimeDisplay(now) {
@@ -373,6 +390,7 @@ function startCountdown() {
         const now = new Date();
         timers.main.remaining = Math.floor((target - now) / 1000);
         countdownEl.textContent = formatTime(timers.main.remaining);
+        updateDocumentTitle();
     }
     
     updateAdditionalTimersDisplay();
@@ -386,6 +404,7 @@ function stopCountdown() {
         releaseWakeLock();
         countdownEl.textContent = "00:00";
         titleEl.textContent = "Countdown Timer";
+        updateDocumentTitle();
         document.body.style.background = "#111";
     }
     
@@ -817,6 +836,7 @@ function initialize() {
     setupShortcutButtons();
     updateTimerSelect();
     updateCountdownPreview();
+    updateDocumentTitle();
 
     if (isStandaloneMode()) {
         fullscreenBtn.innerHTML = '<i class="fas fa-redo"></i>';
