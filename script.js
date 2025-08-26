@@ -155,6 +155,38 @@ function resyncAllTimers() {
 
 // ===== Utility Functions =====
 
+function showTimerSwitchAnimation() {
+    // Add a temporary highlight effect to show the switch
+    const titleEl = document.getElementById("title");
+    const additionalTimersEl = document.getElementById("additionalTimers");
+    const originalBackground = titleEl.style.background;
+    const originalColor = titleEl.style.color;
+    
+    // Flash effect on title
+    titleEl.style.background = "#fd0";
+    titleEl.style.color = "#111";
+    titleEl.style.padding = "5px 10px";
+    titleEl.style.borderRadius = "5px";
+    titleEl.style.transition = "all 0.3s ease";
+    
+    // Subtle highlight on additional timers
+    if (additionalTimersEl) {
+        additionalTimersEl.style.transform = "scale(1.02)";
+        additionalTimersEl.style.transition = "transform 0.3s ease";
+    }
+    
+    setTimeout(() => {
+        titleEl.style.background = originalBackground;
+        titleEl.style.color = originalColor;
+        titleEl.style.padding = "";
+        titleEl.style.borderRadius = "";
+        
+        if (additionalTimersEl) {
+            additionalTimersEl.style.transform = "scale(1)";
+        }
+    }, 300);
+}
+
 function formatTime(seconds) {
     const h = Math.floor(seconds / 3600);
     const m = Math.floor((seconds % 3600) / 60);
@@ -241,6 +273,76 @@ function addNewTimer() {
         setCurrentTimer(timerId);
         updateAdditionalTimersDisplay();
     }
+}
+
+function makeTimerMain(timerId) {
+    if (timerId === "main") return;
+    
+    const additionalTimer = timers[timerId];
+    if (!additionalTimer) return;
+    
+    // Store the current main timer data
+    const currentMainTimer = timers.main;
+    
+    // Swap the timers
+    timers.main = {
+        name: additionalTimer.name,
+        target: additionalTimer.target,
+        remaining: additionalTimer.remaining,
+        isRunning: additionalTimer.isRunning
+    };
+    
+    // Move the old main timer to additional timers
+    timers[timerId] = {
+        name: currentMainTimer.name,
+        target: currentMainTimer.target,
+        remaining: currentMainTimer.remaining,
+        isRunning: currentMainTimer.isRunning
+    };
+    
+    // Update the timer order
+    const mainIndex = timerOrder.indexOf("main");
+    const additionalIndex = timerOrder.indexOf(timerId);
+    
+    if (mainIndex !== -1 && additionalIndex !== -1) {
+        timerOrder[mainIndex] = timerId;
+        timerOrder[additionalIndex] = "main";
+    }
+    
+    // Update current timer selection if needed
+    if (currentTimerId === timerId) {
+        currentTimerId = "main";
+    } else if (currentTimerId === "main") {
+        currentTimerId = timerId;
+    }
+    
+    // Update UI
+    updateTimerSelect();
+    updateAdditionalTimersDisplay();
+    
+    // If the new main timer is running, update the display
+    if (timers.main.isRunning && timers.main.target) {
+        const now = new Date();
+        timers.main.remaining = Math.floor((timers.main.target - now) / 1000);
+        countdownEl.textContent = formatTime(timers.main.remaining);
+        titleEl.textContent = `${timers.main.name} - Time until ${timers.main.target.toLocaleTimeString()}`;
+        updateDocumentTitle();
+        
+        if (timers.main.isRunning) {
+            enableWakeLock();
+            document.body.style.background = "#111";
+        }
+    } else {
+        countdownEl.textContent = "00:00";
+        titleEl.textContent = "Countdown Timer";
+        updateDocumentTitle();
+        document.body.style.background = "#111";
+        releaseWakeLock();
+    }
+    
+    // Update the current timer selection
+    setCurrentTimer(currentTimerId);
+    showTimerSwitchAnimation(); // Call the new animation function
 }
 
 function deleteTimer(timerId) {
@@ -330,12 +432,19 @@ function updateAdditionalTimersDisplay() {
                 <span class="timer-end-time">${endTime}</span>
                 <span class="timer-remaining">${displayText}</span>
                 <button class="delete-timer-btn" data-timer-id="${timerId}" title="Delete timer"><i class="fas fa-trash"></i></button>
+                <button class="make-main-btn" data-timer-id="${timerId}" title="Make Main"><i class="fas fa-crown"></i></button>
             `;
             
             const deleteBtn = timerEl.querySelector('.delete-timer-btn');
             deleteBtn.addEventListener("click", (e) => {
                 e.stopPropagation();
                 deleteTimer(timerId);
+            });
+
+            const makeMainBtn = timerEl.querySelector('.make-main-btn');
+            makeMainBtn.addEventListener("click", (e) => {
+                e.stopPropagation();
+                makeTimerMain(timerId);
             });
             
             timerEl.addEventListener("dragstart", handleDragStart);
