@@ -29,6 +29,127 @@ const increments = [2, 5, 10, 20, 30, 60, 120];
 const tweakRow1Mins = [-5, -2, -1, 1, 2, 5];
 const tweakRow2Mins = [-60, -30, -10, 10, 30, 60];
 
+// ===== Local Storage Keys =====
+const STORAGE_KEYS = {
+    TIMERS: 'countdown_timers',
+    TIMER_ORDER: 'countdown_timer_order',
+    CURRENT_TIMER: 'countdown_current_timer'
+};
+
+// ===== Local Storage Functions =====
+
+function saveTimersToStorage() {
+    try {
+        // Save timers data
+        const timersData = {};
+        Object.keys(timers).forEach(timerId => {
+            const timer = timers[timerId];
+            // Convert Date objects to ISO strings for storage
+            timersData[timerId] = {
+                ...timer,
+                target: timer.target ? timer.target.toISOString() : null
+            };
+        });
+        
+        localStorage.setItem(STORAGE_KEYS.TIMERS, JSON.stringify(timersData));
+        localStorage.setItem(STORAGE_KEYS.TIMER_ORDER, JSON.stringify(timerOrder));
+        localStorage.setItem(STORAGE_KEYS.CURRENT_TIMER, currentTimerId);
+        
+        console.log('Timers saved to local storage');
+    } catch (error) {
+        console.error('Failed to save timers to local storage:', error);
+    }
+}
+
+function loadTimersFromStorage() {
+    try {
+        // Load timers data
+        const savedTimers = localStorage.getItem(STORAGE_KEYS.TIMERS);
+        const savedTimerOrder = localStorage.getItem(STORAGE_KEYS.TIMER_ORDER);
+        const savedCurrentTimer = localStorage.getItem(STORAGE_KEYS.CURRENT_TIMER);
+        
+        if (savedTimers) {
+            const timersData = JSON.parse(savedTimers);
+            
+            // Restore timers with proper Date objects
+            Object.keys(timersData).forEach(timerId => {
+                const timerData = timersData[timerId];
+                timers[timerId] = {
+                    ...timerData,
+                    target: timerData.target ? new Date(timerData.target) : null
+                };
+            });
+            
+            // Clean up expired timers
+            cleanupExpiredTimers();
+        }
+        
+        if (savedTimerOrder) {
+            timerOrder = JSON.parse(savedTimerOrder);
+            // Filter out any timer IDs that no longer exist
+            timerOrder = timerOrder.filter(id => timers[id]);
+        }
+        
+        if (savedCurrentTimer && timers[savedCurrentTimer]) {
+            currentTimerId = savedCurrentTimer;
+        }
+        
+        console.log('Timers loaded from local storage');
+        return true;
+    } catch (error) {
+        console.error('Failed to load timers from local storage:', error);
+        return false;
+    }
+}
+
+function cleanupExpiredTimers() {
+    const now = new Date();
+    const expiredTimerIds = [];
+    
+    Object.keys(timers).forEach(timerId => {
+        const timer = timers[timerId];
+        if (timer.target && timer.target < now && timer.isRunning) {
+            // Timer has expired, mark it as stopped
+            timer.isRunning = false;
+            timer.remaining = 0;
+            expiredTimerIds.push(timerId);
+        }
+    });
+    
+    if (expiredTimerIds.length > 0) {
+        console.log('Cleaned up expired timers:', expiredTimerIds);
+        saveTimersToStorage(); // Save the cleaned up state
+    }
+}
+
+function clearAllSavedTimers() {
+    try {
+        localStorage.removeItem(STORAGE_KEYS.TIMERS);
+        localStorage.removeItem(STORAGE_KEYS.TIMER_ORDER);
+        localStorage.removeItem(STORAGE_KEYS.CURRENT_TIMER);
+        console.log('All saved timers cleared from local storage');
+        
+        // Reset to default state
+        timers = {
+            main: {
+                name: "Focus",
+                target: null,
+                remaining: 0,
+                isRunning: false
+            }
+        };
+        currentTimerId = "main";
+        timerOrder = ["main"];
+        
+        // Update UI
+        updateTimerSelect();
+        updateAdditionalTimersDisplay();
+        setCurrentTimer("main");
+    } catch (error) {
+        console.error('Failed to clear saved timers:', error);
+    }
+}
+
 // ===== State =====
 let mainTimer = null;
 let wakeLock = null;
@@ -272,6 +393,7 @@ function addNewTimer() {
         updateTimerSelect();
         setCurrentTimer(timerId);
         updateAdditionalTimersDisplay();
+        saveTimersToStorage(); // Save to local storage
     }
 }
 
@@ -323,7 +445,7 @@ function makeTimerMain(timerId) {
     // If the new main timer is running, update the display
     if (timers.main.isRunning && timers.main.target) {
         const now = new Date();
-        timers.main.remaining = Math.floor((timers.main.target - now) / 1000);
+        timers.main.remaining = Math.floor((target - now) / 1000);
         countdownEl.textContent = formatTime(timers.main.remaining);
         titleEl.textContent = `${timers.main.name} - Time until ${timers.main.target.toLocaleTimeString()}`;
         updateDocumentTitle();
@@ -343,6 +465,7 @@ function makeTimerMain(timerId) {
     // Update the current timer selection
     setCurrentTimer(currentTimerId);
     showTimerSwitchAnimation(); // Call the new animation function
+    saveTimersToStorage(); // Save to local storage
 }
 
 function deleteTimer(timerId) {
@@ -372,6 +495,7 @@ function deleteTimer(timerId) {
     
     updateTimerSelect();
     updateAdditionalTimersDisplay();
+    saveTimersToStorage(); // Save to local storage
 }
 
 function renameCurrentTimer() {
@@ -384,6 +508,7 @@ function renameCurrentTimer() {
         updateTimerSelect();
         updateAdditionalTimersDisplay();
         updateTimerTitle();
+        saveTimersToStorage(); // Save to local storage
     }
 }
 
@@ -478,6 +603,7 @@ function setCurrentTimer(timerId) {
         minuteInput.value = "";
         updateCountdownPreview();
     }
+    saveTimersToStorage(); // Save to local storage
 }
 
 // ===== Timer Control Functions =====
@@ -504,6 +630,7 @@ function startCountdown() {
     }
     
     updateAdditionalTimersDisplay();
+    saveTimersToStorage(); // Save to local storage
 }
 
 function stopCountdown() {
@@ -523,6 +650,7 @@ function stopCountdown() {
     currentTimer.remaining = 0;
     
     updateAdditionalTimersDisplay();
+    saveTimersToStorage(); // Save to local storage
 }
 
 // ===== Helper Functions =====
@@ -819,6 +947,7 @@ function handleDrop(e) {
                 });
                 
                 updateAdditionalTimersDisplay();
+                saveTimersToStorage(); // Save to local storage
             }
         }
     }
@@ -913,6 +1042,8 @@ function handleTouchEnd(e) {
         }
     });
     
+    saveTimersToStorage(); // Save to local storage
+    
     touchStartElement = null;
     touchStartIndex = -1;
     isDragging = false;
@@ -928,6 +1059,9 @@ function isStandaloneMode() {
 function initialize() {
     setVH();
     updateCurrentTimeDisplay(new Date());
+    
+    // Load saved timers from local storage
+    loadTimersFromStorage();
     
     // Start the main timer that updates everything every second
     mainTimer = setInterval(updateAllTimers, 1000);
@@ -945,8 +1079,12 @@ function initialize() {
     setupEventListeners();
     setupShortcutButtons();
     updateTimerSelect();
+    updateAdditionalTimersDisplay();
     updateCountdownPreview();
     updateDocumentTitle();
+    
+    // Set current timer after loading from storage
+    setCurrentTimer(currentTimerId);
 
     if (isStandaloneMode()) {
         fullscreenBtn.innerHTML = '<i class="fas fa-redo"></i>';
