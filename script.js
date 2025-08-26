@@ -445,7 +445,7 @@ function makeTimerMain(timerId) {
     // If the new main timer is running, update the display
     if (timers.main.isRunning && timers.main.target) {
         const now = new Date();
-        timers.main.remaining = Math.floor((target - now) / 1000);
+        timers.main.remaining = Math.floor((timers.main.target - now) / 1000);
         countdownEl.textContent = formatTime(timers.main.remaining);
         titleEl.textContent = `${timers.main.name} - Time until ${timers.main.target.toLocaleTimeString()}`;
         updateDocumentTitle();
@@ -565,10 +565,35 @@ function updateAdditionalTimersDisplay() {
                 e.stopPropagation();
                 deleteTimer(timerId);
             });
+            
+            // Add touch-specific event listeners for better iPad compatibility
+            deleteBtn.addEventListener("touchstart", (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+            });
+            
+            deleteBtn.addEventListener("touchend", (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                deleteTimer(timerId);
+            });
 
             const makeMainBtn = timerEl.querySelector('.make-main-btn');
             makeMainBtn.addEventListener("click", (e) => {
                 e.stopPropagation();
+                makeTimerMain(timerId);
+            });
+            
+            // Add touch-specific event listeners for better iPad compatibility
+            makeMainBtn.addEventListener("touchstart", (e) => {
+                e.stopPropagation();
+                // Prevent default to avoid double-triggering on some devices
+                e.preventDefault();
+            });
+            
+            makeMainBtn.addEventListener("touchend", (e) => {
+                e.stopPropagation();
+                e.preventDefault();
                 makeTimerMain(timerId);
             });
             
@@ -673,12 +698,67 @@ function targetTime() {
 
 async function enableWakeLock() {
     try {
+        // Try the standard wake lock API first
         if ("wakeLock" in navigator) {
             wakeLock = await navigator.wakeLock.request("screen");
             console.log("Screen Wake Lock enabled");
+            return;
         }
+        
+        // Fallback for devices that don't support wake lock (like iPad)
+        console.log("Wake Lock API not supported, using fallback methods");
+        
+        // For iPad and other devices, try to prevent sleep by keeping the page active
+        if (typeof window !== 'undefined') {
+            // Keep the page active by periodically updating
+            if (!window.fallbackWakeLockInterval) {
+                window.fallbackWakeLockInterval = setInterval(() => {
+                    // This helps prevent some devices from sleeping
+                    if (document.visibilityState === 'visible') {
+                        // Keep the page active
+                        window.focus();
+                        
+                        // For iPad, try to keep the screen on by simulating user activity
+                        if (navigator.userAgent.includes('iPad') || navigator.userAgent.includes('Macintosh')) {
+                            // Create a subtle visual update to keep the screen active
+                            const now = new Date();
+                            if (timers.main && timers.main.isRunning) {
+                                // Update the countdown display to keep the screen active
+                                updateDocumentTitle();
+                            }
+                        }
+                    }
+                }, 15000); // Every 15 seconds for better iPad compatibility
+            }
+            
+            // Additional iPad-specific method: request animation frame to keep the screen active
+            if (navigator.userAgent.includes('iPad') || navigator.userAgent.includes('Macintosh')) {
+                if (!window.fallbackAnimationFrame) {
+                    const keepAlive = () => {
+                        if (timers.main && timers.main.isRunning) {
+                            // Keep requesting animation frames to prevent sleep
+                            window.fallbackAnimationFrame = requestAnimationFrame(keepAlive);
+                        }
+                    };
+                    keepAlive();
+                }
+            }
+        }
+        
     } catch (err) {
         console.error("Wake Lock failed:", err);
+        
+        // Fallback for devices that don't support wake lock
+        console.log("Using fallback wake lock methods");
+        if (typeof window !== 'undefined') {
+            if (!window.fallbackWakeLockInterval) {
+                window.fallbackWakeLockInterval = setInterval(() => {
+                    if (document.visibilityState === 'visible') {
+                        window.focus();
+                    }
+                }, 15000);
+            }
+        }
     }
 }
 
@@ -687,6 +767,13 @@ function releaseWakeLock() {
         wakeLock.release();
         wakeLock = null;
         console.log("Screen Wake Lock released");
+    }
+    
+    // Clear fallback wake lock interval if it exists
+    if (window.fallbackWakeLockInterval) {
+        clearInterval(window.fallbackWakeLockInterval);
+        window.fallbackWakeLockInterval = null;
+        console.log("Fallback wake lock cleared");
     }
 }
 
